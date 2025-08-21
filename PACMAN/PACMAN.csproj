@@ -19,4 +19,10 @@
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Assets\Data\" />
+    <Folder Include="Assets\Images\" />
+    <Folder Include="Assets\Sound\" />
+  </ItemGroup>
 </Project>
