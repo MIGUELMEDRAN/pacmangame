@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 
 namespace PACMAN.Audio;
 
+/// <summary>
+/// Reproduce efectos de sonido para el juego PACMAN utilizando LibCLV.
+/// </summary>
 public class AudioPlayer : IDisposable
 {
     private readonly LibVLC libVLC;
@@ -12,6 +15,10 @@ public class AudioPlayer : IDisposable
     private readonly string chompPath;
     private readonly string deadPath;
 
+    /// <summary>
+    /// Inicializa una nueva instancia de la clase <see cref="AudioPlayer"/>
+    /// Carga los archivos de audio y configura LibVLC.
+    /// </summary>
     public AudioPlayer()
     {
         Core.Initialize();
@@ -22,11 +29,17 @@ public class AudioPlayer : IDisposable
         deadPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Sound", "dead.wav");
     }
 
+    /// <summary>
+    /// Reproduce el sonido "chomp" (comer punto).
+    /// </summary>
     public void Chomp()
     {
         Play(chompPath);
     }
 
+    /// <summary>
+    /// Reproduce el sonido "dead" (muerte del pacman).
+    /// </summary>
     public void Dead()
     {
         Play(deadPath);
@@ -47,6 +60,9 @@ public class AudioPlayer : IDisposable
         });
     }
 
+    /// <summary>
+    /// Libera los recursos utilizados por la instancia de <see cref="AudioPlayer"/>
+    /// </summary>
     public void Dispose()
     {
         mediaPlayer.Dispose();
