@@ -62,6 +62,10 @@
             "Avalonia.Themes.Fluent": {
               "target": "Package",
               "version": "[11.3.2, )"
+            },
+            "LibVLCSharp.Avalonia": {
+              "target": "Package",
+              "version": "[3.9.4, )"
             }
           },
           "imports": [
