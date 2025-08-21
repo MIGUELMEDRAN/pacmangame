@@ -1,6 +1,8 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Markup.Xaml;
 
-namespace PACMAN;
+namespace PACMAN.Views;
 
 public partial class MainWindow : Window
 {
