@@ -9,8 +9,15 @@ using PACMAN.Services;
 
 namespace PACMAN.Views;
 
+/// <summary>
+/// Representa la vista del menu principal.
+/// </summary>
 public partial class MainMenuView : UserControl
 {
+    /// <summary>
+    /// Inicializa una nueva instancia de la clase <see cref="MainMenuView"/>
+    /// Tambien inicializa el servicio de puntajes.
+    /// </summary>
     public MainMenuView()
     {
         InitializeComponent();

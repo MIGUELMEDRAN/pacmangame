@@ -7,11 +7,17 @@ using PACMAN.Audio;
 
 namespace PACMAN.Views;
 
+/// <summary>
+/// Vista principal del juego.
+/// </summary>
 public partial class GameView : UserControl
 {
     private GameViewModel _viewModel;
     private AudioPlayer _audioPlayer;
     
+    /// <summary>
+    /// Inicializa una nueva instancia de la clase <see cref="GameView"/>
+    /// </summary>
     public GameView()
     {
         InitializeComponent();
@@ -39,11 +45,18 @@ public partial class GameView : UserControl
         }
     }
 
+    /// <summary>
+    /// Actualiza el texto en pantalla que muestra el puntaje.
+    /// </summary>
+    /// <param name="score">Puntaje actual del jugador.</param>
     public void UpdateScoreDisplay(int score)
     {
-        ScoreText.Text = $"Puntaje: {score}";
+        ScoreText.Text = $"Score: {score}";
     }
 
+    /// <summary>
+    /// Muestra el mensaje de Game Over en la pantalla.
+    /// </summary>
     public void ShowGameOver()
     {
         GameOverText.IsVisible = true;

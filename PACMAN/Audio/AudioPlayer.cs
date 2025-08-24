@@ -43,7 +43,7 @@ public class AudioPlayer : IDisposable
     }
 
     /// <summary>
-    /// Reproduce el sonido "dead" (muerte del pacman).
+    /// Reproduce el sonido "dead" (muerte del pacman) y bloquear otros sonidos.
     /// </summary>
     public void Dead()
     {
