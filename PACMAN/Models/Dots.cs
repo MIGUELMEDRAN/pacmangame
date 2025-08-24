@@ -10,22 +10,45 @@ using PACMAN.Services;
 
 namespace PACMAN.Models;
 
+/// <summary>
+/// Representa los puntos pequeños y grandes (power-ups).
+/// </summary>
 public class Dots
 {
+    /// <summary>
+    /// Obtiene la lista de puntos pequeños en el juego.
+    /// </summary>
     public List<Ellipse> SmallDots { get; private set; } = new();
+    
+    /// <summary>
+    /// Obtiene la lista de puntos grandes (power-ups) en el juego.
+    /// </summary>
     public List<Control> BigDots { get; private set; } = new();
     
     private AudioPlayer audioPlayer;
 
     private int currentScore = 0;
 
+    /// <summary>
+    /// Evento que se dispara cuando el jugador gana puntos.
+    /// </summary>
     public event Action<int>? OnScore;
 
-    public Dots()
+    /// <summary>
+    /// Inicializa una nueva instancia de la clase <see cref="Dots"/> con un reproductor de audio.
+    /// </summary>
+    /// <param name="audioPlayer">Instancia de <see cref="AudioPlayer"/> usada para reproducir sonidos.</param>
+    /// <exception cref="ArgumentNullException">Se lanza si <paramref name="audioPlayer"/> es null.</exception>
+    public Dots(AudioPlayer audioPlayer)
     {
-        audioPlayer = audioPlayer ?? throw new ArgumentNullException(nameof(audioPlayer));
+        this.audioPlayer = audioPlayer ?? throw new ArgumentNullException(nameof(audioPlayer));
     }
 
+    /// <summary>
+    /// Crea y dibuja los puntos pequeños (blancos) en el canvas, evitando las paredes.
+    /// </summary>
+    /// <param name="canvas">El canvas donde se dibujan los puntos.</param>
+    /// <param name="walls">Lista de rectangulos que representan las paredes del juego.</param>
     public void CreateDots(Canvas canvas, List<Rect> walls)
     {
         double spacing = 30;
@@ -58,7 +81,11 @@ public class Dots
         }
     }
     
-    public void CreatePowerUps(Canvas gameCanvas)
+    /// <summary>
+    /// Crea y dibuja los puntos grandes (power-ups) en posiciones fijas dentro del canvas.
+    /// </summary>
+    /// <param name="canvas">El canvas del juego donde se dibujan los power-ups.</param>
+    public void CreatePowerUps(Canvas canvas)
     {
         var positions = new (double x, double y)[]
         {
@@ -80,12 +107,17 @@ public class Dots
             
             Canvas.SetLeft(powerUp, x);
             Canvas.SetTop(powerUp, y);
-            gameCanvas.Children.Add(powerUp);
+            canvas.Children.Add(powerUp);
             BigDots.Add(powerUp);
         }
     }
 
-    public void CheckDotCollision(Canvas gameCanvas, Rect pacmanBounds)
+    /// <summary>
+    /// Verifica colisiones entre pacman y los puntos y actualiza la puntuacion.
+    /// </summary>
+    /// <param name="canvas">El canvas del juego para eliminar visualmente los puntos recogidos.</param>
+    /// <param name="pacmanBounds">Los limites del jugador pacman utilizados para detectar colisiones.</param>
+    public void CheckDotCollision(Canvas canvas, Rect pacmanBounds)
     {
         for (int i = SmallDots.Count - 1; i >= 0; i--)
         {
@@ -96,7 +128,7 @@ public class Dots
 
             if (pacmanBounds.Intersects(dotBounds))
             {
-                gameCanvas.Children.Remove(dot);
+                canvas.Children.Remove(dot);
                 SmallDots.RemoveAt(i);
                 currentScore += 10;
                 audioPlayer.Chomp();
@@ -114,7 +146,7 @@ public class Dots
 
             if (pacmanBounds.Intersects(dotBounds))
             {
-                gameCanvas.Children.Remove(dot);
+                canvas.Children.Remove(dot);
                 BigDots.RemoveAt(i);
                 currentScore += 50;
                 audioPlayer.Chomp();
