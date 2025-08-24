@@ -1,0 +1,67 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PACMAN.Views.GameView"
+             Focusable="True" KeyDown="OnKeyDown">
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        
+        <Border Grid.Row="0" Background="Black" Padding="10">
+            <DockPanel>
+                <TextBlock x:Name="ScoreText"
+                           Text="Puntaje: 0"
+                           Foreground="Yellow"
+                           FontSize="18"
+                           VerticalAlignment="Center"
+                           Margin="0,0,20,0"
+                           DockPanel.Dock="Left"/>
+                
+                <Button x:Name="BackToMenuButton"
+                        Content="Volver al menu"
+                        Width="130" Height="30"
+                        Foreground="Yellow"
+                        Click="OnBackToMenuClick"
+                        HorizontalAlignment="Right"
+                        HorizontalContentAlignment="Right"
+                        DockPanel.Dock="Right"/>
+            </DockPanel>
+        </Border>
+        
+        <Canvas x:Name="GameCanvas"
+                Grid.Row="1"
+                Background="Black"
+                Width="600"
+                Height="600">
+            
+            <Image x:Name="PacmanOpen"
+                   Width="30" Height="30"
+                   Canvas.Left="100" Canvas.Top="100"
+                   Source="/Assets/Images/pacman1.png"/>
+            <Image x:Name="PacmanClosed"
+                   Width="30" Height="30"
+                   Canvas.Left="100" Canvas.Top="100"
+                   Source="/Assets/Images/pacman2.png"
+                   IsVisible="False"/>
+            
+            <Image x:Name="RedGhost"
+                   Width="30" Height="30"
+                   Canvas.Left="270" Canvas.Top="270"
+                   Source="/Assets/Images/blinky.png"/>
+            <Image x:Name="BlueGhost"
+                   Width="30" Height="30"
+                   Canvas.Left="300" Canvas.Top="270"
+                   Source="/Assets/Images/inky.png"/>
+            
+            <TextBlock x:Name="GameOverText"
+                       Text="¡Game Over!"
+                       FontSize="32"
+                       FontWeight="Bold"
+                       Foreground="Red"
+                       Canvas.Left="200" Canvas.Top="250"
+                       IsVisible="False"/>
+        </Canvas>
+    </Grid>
+</UserControl>
