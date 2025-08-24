@@ -106,6 +106,6 @@ public class Pacman
     {
         IsMouthOpen = !IsMouthOpen;
         OpenImage.IsVisible = IsMouthOpen;
-        OpenImage.IsVisible = !IsMouthOpen;
+        CloseImage.IsVisible = !IsMouthOpen;
     }
 }

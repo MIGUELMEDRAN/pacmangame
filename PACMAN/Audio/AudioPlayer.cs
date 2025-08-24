@@ -14,6 +14,8 @@ public class AudioPlayer : IDisposable
     private readonly MediaPlayer mediaPlayer;
     private readonly string chompPath;
     private readonly string deadPath;
+    
+    private volatile bool IsGameOver = false;
 
     /// <summary>
     /// Inicializa una nueva instancia de la clase <see cref="AudioPlayer"/>
@@ -34,7 +36,10 @@ public class AudioPlayer : IDisposable
     /// </summary>
     public void Chomp()
     {
-        Play(chompPath);
+        if (!IsGameOver)
+        {
+            Play(chompPath);
+        }
     }
 
     /// <summary>
@@ -42,7 +47,22 @@ public class AudioPlayer : IDisposable
     /// </summary>
     public void Dead()
     {
-        Play(deadPath);
+        IsGameOver = true;
+
+        Task.Run(() =>
+        {
+            lock (mediaPlayer)
+            {
+                if (mediaPlayer.IsPlaying)
+                {
+                    mediaPlayer.Stop();
+                }
+
+                using var media = new Media(libVLC, deadPath, FromType.FromPath);
+                mediaPlayer.Media = media;
+                mediaPlayer.Play();
+            }
+        });
     }
 
     private void Play(string path)

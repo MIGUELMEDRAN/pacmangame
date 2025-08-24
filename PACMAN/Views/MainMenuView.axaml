@@ -1,0 +1,10 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PACMAN.Views.MainMenuView">
+    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+        <TextBlock Text="PACMAN" FontSize="28" Foreground="Yellow"/>
+        <Button Content="Start Game" Width="250" Click="StartGameClick"/>
+        <Button Content="View Score" Width="250" Click="ViewScoreClick"/>
+        <Button Content="Exit" Width="250" Click="ExitClick"/>
+    </StackPanel>
+</UserControl>

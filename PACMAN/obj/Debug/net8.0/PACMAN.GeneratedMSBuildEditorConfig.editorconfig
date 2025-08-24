@@ -25,5 +25,11 @@ build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 [/home/maria/pacmangame/PACMAN/Views/GameView.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
+[/home/maria/pacmangame/PACMAN/Views/MainMenuView.axaml]
+build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
+
 [/home/maria/pacmangame/PACMAN/Views/MainWindow.axaml]
+build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
+
+[/home/maria/pacmangame/PACMAN/Views/ScoreBoardWindow.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml

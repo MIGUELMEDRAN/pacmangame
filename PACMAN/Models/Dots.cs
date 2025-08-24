@@ -95,7 +95,7 @@ public class Dots
 
         foreach (var (x,y) in positions)
         {
-            var uri = new Uri("avares://PACMAN2/Assets/Images/cherrys.jpg");
+            var uri = new Uri("avares://PACMAN/Assets/Images/cherrys.jpg");
             var assetStream = AssetLoader.Open(uri);
 
             var powerUp = new Image

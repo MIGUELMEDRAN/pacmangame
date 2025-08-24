@@ -1,0 +1,40 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PACMAN.Views.ScoreBoardWindow"
+        Title="Score Board"
+        Width="600" Height="800"
+        Background="Black">
+    
+    <Grid>
+        <Image Source="/Assets/Images/background.jpg"
+               Stretch="UniformToFill"
+               Opacity="0.25"/>
+        
+        <Grid Margin="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            
+            <TextBlock Text="Scores"
+                       FontSize="24"
+                       Foreground="Yellow"
+                       HorizontalAlignment="Center"
+                       Grid.Row="0"
+                       Margin="0,0,0,10"/>
+            
+            <ScrollViewer Height="200" Grid.Row="1">
+                <ItemsControl x:Name="ScoreList" FontSize="20">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}"
+                                       Foreground="White"
+                                       Margin="5"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>
