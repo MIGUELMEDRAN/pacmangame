@@ -25,7 +25,6 @@
     <Folder Include="Assets\Data\" />
     <Folder Include="Assets\Images\" />
     <Folder Include="Assets\Sound\" />
-    <Folder Include="ViewModels\" />
   </ItemGroup>
     
   <ItemGroup>

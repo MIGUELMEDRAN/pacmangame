@@ -25,7 +25,7 @@ public class Dots
     /// </summary>
     public List<Control> BigDots { get; private set; } = new();
     
-    private AudioPlayer audioPlayer;
+    private AudioPlayer _audioPlayer;
 
     private int currentScore = 0;
 
@@ -41,7 +41,7 @@ public class Dots
     /// <exception cref="ArgumentNullException">Se lanza si <paramref name="audioPlayer"/> es null.</exception>
     public Dots(AudioPlayer audioPlayer)
     {
-        this.audioPlayer = audioPlayer ?? throw new ArgumentNullException(nameof(audioPlayer));
+        _audioPlayer = audioPlayer ?? throw new ArgumentNullException(nameof(audioPlayer));
     }
 
     /// <summary>
@@ -131,7 +131,7 @@ public class Dots
                 canvas.Children.Remove(dot);
                 SmallDots.RemoveAt(i);
                 currentScore += 10;
-                audioPlayer.Chomp();
+                _audioPlayer.Chomp();
                 OnScore?.Invoke(10);
                 ScoreService.UpdateScore(currentScore);
             }
@@ -149,7 +149,7 @@ public class Dots
                 canvas.Children.Remove(dot);
                 BigDots.RemoveAt(i);
                 currentScore += 50;
-                audioPlayer.Chomp();
+                _audioPlayer.Chomp();
                 OnScore?.Invoke(50);
                 ScoreService.UpdateScore(currentScore);
             }
