@@ -13,11 +13,29 @@ using System.Collections.Generic;
 
 namespace PACMAN.ViewModels;
 
+/// <summary>
+/// ViewModel principal que gestiona la logica del juego.
+/// </summary>
 public class GameViewModel
 {
+    /// <summary>
+    /// Obtiene la instancia actual del juagdor.
+    /// </summary>
     public Pacman Pacman { get; private set; }
+    
+    /// <summary>
+    /// Obtiene la coleccion de puntos.
+    /// </summary>
     public Dots Dots { get; private set; }
+    
+    /// <summary>
+    /// Obtiene la lista de muros.
+    /// </summary>
     public List<Rect> Walls { get; private set; } = new();
+    
+    /// <summary>
+    /// Obtiene la lista de fantasmas.
+    /// </summary>
     public List<Ghost> Ghosts { get; private set; } = new();
     
     private DispatcherTimer _animationTimer;
@@ -29,6 +47,15 @@ public class GameViewModel
     
     private readonly AudioPlayer _audioPlayer;
 
+    /// <summary>
+    /// Inicializa una nueva instancia de la clase <see cref="GameViewModel"/>.
+    /// </summary>
+    /// <param name="gameView">Vista del juego.</param>
+    /// <param name="open">Imagen de pacman con la boca abierta.</param>
+    /// <param name="closed">IMagen de pacman con la boca cerrada.</param>
+    /// <param name="canvas">Lienzo principal del juego.</param>
+    /// <param name="audioPlayer">Reproductor de sonidos.</param>
+    /// <exception cref="ArgumentNullException">Se lanza si alguno de los parametros requeridos es nulo.</exception>
     public GameViewModel(GameView gameView, Image open, Image closed, Canvas canvas, AudioPlayer audioPlayer)
     {
         _gameView = gameView ?? throw new ArgumentNullException(nameof(gameView));
@@ -76,6 +103,11 @@ public class GameViewModel
         Ghosts.Add(ghost);
     }
 
+    /// <summary>
+    /// Maneja el evento de presionar una tecla para mover a pacman.
+    /// </summary>
+    /// <param name="e">Datos del evento de tecla presionada.</param>
+    /// <param name="canvas">Lienzo del juego.</param>
     public void OnKeyDown(KeyEventArgs e, Canvas canvas)
     {
         double newX = Pacman.X, newY = Pacman.Y;
@@ -86,18 +118,22 @@ public class GameViewModel
         switch (e.Key)
         {
             case Key.Up:
+            case Key.W:    
                 newY -= Pacman.MoveStep;
                 angle = 270;
                 break;
             case Key.Down:
+            case Key.S:    
                 newY += Pacman.MoveStep;
                 angle = 90;
                 break;
             case Key.Left:
+            case Key.A:    
                 newX -= Pacman.MoveStep;
                 angle = 180;
                 break;
             case Key.Right:
+            case Key.D:    
                 newX += Pacman.MoveStep;
                 angle = 0;
                 break;

@@ -41,7 +41,7 @@ public class Dots
     /// <exception cref="ArgumentNullException">Se lanza si <paramref name="audioPlayer"/> es null.</exception>
     public Dots(AudioPlayer audioPlayer)
     {
-        _audioPlayer = audioPlayer ?? throw new ArgumentNullException(nameof(audioPlayer));
+        this._audioPlayer = audioPlayer ?? throw new ArgumentNullException(nameof(audioPlayer));
     }
 
     /// <summary>
