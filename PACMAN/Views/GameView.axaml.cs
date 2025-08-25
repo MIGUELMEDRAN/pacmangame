@@ -62,6 +62,14 @@ public partial class GameView : UserControl
         GameOverText.IsVisible = true;
     }
 
+    /// <summary>
+    /// Muestra el mensaje de Victoria en la pantalla
+    /// </summary>
+    public void ShowWinMessage()
+    {
+        WinText.IsVisible = true;
+    }
+
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);

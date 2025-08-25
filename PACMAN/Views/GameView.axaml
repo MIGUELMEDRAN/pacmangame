@@ -62,6 +62,14 @@
                        Foreground="Red"
                        Canvas.Left="200" Canvas.Top="250"
                        IsVisible="False"/>
+            
+            <TextBlock x:Name="WinText"
+                       Text="¡Ganaste"
+                       FontSize="32"
+                       FontWeight="Bold"
+                       Foreground="Green"
+                       Canvas.Left="200" Canvas.Top="250"
+                       IsVisible="False"/>
         </Canvas>
     </Grid>
 </UserControl>

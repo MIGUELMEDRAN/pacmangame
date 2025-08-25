@@ -4,9 +4,11 @@ using Avalonia.Media;
 using Avalonia.Platform; 
 using Avalonia; 
 using System; 
-using System.Collections.Generic; 
+using System.Collections.Generic;
+using Avalonia.VisualTree;
 using PACMAN.Audio; 
-using PACMAN.Services; 
+using PACMAN.Services;
+using PACMAN.Views;
 
 namespace PACMAN.Models;
 
@@ -134,6 +136,14 @@ public class Dots
                 _audioPlayer.Chomp();
                 OnScore?.Invoke(10);
                 ScoreService.UpdateScore(currentScore);
+            }
+
+            if (SmallDots.Count == 0 && BigDots.Count == 0)
+            {
+                if (canvas.GetVisualRoot() is GameView gameview)
+                {
+                    gameview.ShowWinMessage();
+                }
             }
         }
 
