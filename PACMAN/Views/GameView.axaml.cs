@@ -42,6 +42,8 @@ public partial class GameView : UserControl
 
     private void OnBackToMenuClick(object? sender, RoutedEventArgs e)
     {
+        _viewModel?.Dispose();
+
         if (VisualRoot is MainWindow mainWindow)
         {
             mainWindow.LoadMainMenuView();
@@ -93,6 +95,9 @@ public partial class GameView : UserControl
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
+        _viewModel?.Dispose();
         _audioPlayer?.Dispose();
+        _viewModel = null;
+        _audioPlayer = null;
     }
 }

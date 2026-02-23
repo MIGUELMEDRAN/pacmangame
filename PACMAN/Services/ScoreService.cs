@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using PACMAN.Models;
 
@@ -11,21 +12,23 @@ namespace PACMAN.Services;
 /// </summary>
 public class ScoreService
 {
-    private static readonly string path = Path.Combine(AppContext.BaseDirectory, "Assets", "Data", "score.json");
-    private static readonly JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
+    private static readonly string PathToScores = Path.Combine(AppContext.BaseDirectory, "Assets", "Data", "score.json");
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     /// <summary>
     /// Inicializa el archivo de puntuaciones si no existe, creando una entrada inicial.
     /// </summary>
     public static void Initialize()
     {
-        if (!File.Exists(path))
+        var directory = Path.GetDirectoryName(PathToScores);
+        if (!string.IsNullOrWhiteSpace(directory) && !Directory.Exists(directory))
         {
-            var initialScores = new List<Score>
-            {
-                new Score { PlayerName = "Jugador", HighScore = 0 }
-            };
-            SaveScore(initialScores);
+            Directory.CreateDirectory(directory);
+        }
+
+        if (!File.Exists(PathToScores))
+        {
+            SaveScore([new Score { PlayerName = "Jugador", HighScore = 0 }]);
         }
     }
 
@@ -35,13 +38,13 @@ public class ScoreService
     /// <returns>Una lista de objetos <see cref="Score"/> representando las puntuaciones.</returns>
     public static List<Score> LoadScores()
     {
-        if (!File.Exists(path))
+        if (!File.Exists(PathToScores))
         {
-            return new List<Score>();
+            return [];
         }
-        
-        var json = File.ReadAllText(path);
-        return JsonSerializer.Deserialize<List<Score>>(json) ?? new List<Score>();
+
+        var json = File.ReadAllText(PathToScores);
+        return JsonSerializer.Deserialize<List<Score>>(json) ?? [];
     }
 
     /// <summary>
@@ -50,8 +53,13 @@ public class ScoreService
     /// <param name="scores">Lista de objetos <see cref="Score"/> a guardar.</param>
     public static void SaveScore(List<Score> scores)
     {
-        var json = JsonSerializer.Serialize(scores, options);
-        File.WriteAllText(path, json);
+        var orderedScores = scores
+            .OrderByDescending(s => s.HighScore)
+            .ThenBy(s => s.PlayerName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var json = JsonSerializer.Serialize(orderedScores, JsonOptions);
+        File.WriteAllText(PathToScores, json);
     }
 
     /// <summary>
@@ -61,15 +69,17 @@ public class ScoreService
     public static void UpdateScore(int newScore)
     {
         var scores = LoadScores();
+        var player = scores.Find(s => s.PlayerName.Equals("Jugador", StringComparison.OrdinalIgnoreCase));
 
-        if (scores.Count > 0)
+        if (player is null)
         {
-            scores[0].HighScore = newScore;
+            scores.Add(new Score { PlayerName = "Jugador", HighScore = Math.Max(0, newScore) });
         }
         else
         {
-            scores.Add(new Score { PlayerName = "Jugador", HighScore = newScore });
+            player.HighScore = Math.Max(player.HighScore, newScore);
         }
+
         SaveScore(scores);
     }
 
@@ -80,13 +90,17 @@ public class ScoreService
     public static void ResetPlayerScore(string playerName)
     {
         var scores = LoadScores();
-        
         var player = scores.Find(s => s.PlayerName.Equals(playerName, StringComparison.OrdinalIgnoreCase));
 
-        if (player != null)
+        if (player is null)
+        {
+            scores.Add(new Score { PlayerName = playerName, HighScore = 0 });
+        }
+        else
         {
             player.HighScore = 0;
-            SaveScore(scores);
         }
+
+        SaveScore(scores);
     }
 }
