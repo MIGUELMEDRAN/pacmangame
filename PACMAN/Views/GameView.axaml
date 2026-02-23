@@ -10,25 +10,25 @@
                 BorderBrush="#334155"
                 BorderThickness="0,0,0,1"
                 CornerRadius="10,10,0,0">
-            <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
-                <Button Grid.Column="0" x:Name="BackToMenuButton" Content="Menú" Width="118" Height="34" Click="OnBackToMenuClick"/>
-
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="20" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <TextBlock x:Name="LivesText" Text="Vidas: ●●●" Foreground="#FDE68A" FontSize="18" FontWeight="SemiBold" TextAlignment="Center"/>
-                    <TextBlock x:Name="ScoreText" Text="Score: 0" Foreground="#FDE68A" FontSize="18" FontWeight="SemiBold" TextAlignment="Center"/>
-                    <TextBlock x:Name="LevelText" Text="Nivel: 1" Foreground="#93C5FD" FontSize="18" FontWeight="SemiBold" TextAlignment="Center"/>
-                    <TextBlock x:Name="ThemeText" Text="Tema: Aurora" Foreground="#A7F3D0" FontSize="18" FontWeight="SemiBold" TextAlignment="Center"/>
+            <StackPanel Spacing="10" HorizontalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="26" HorizontalAlignment="Center">
+                    <TextBlock x:Name="LivesText" Text="Vidas: ●●●" Foreground="#FDE68A" FontSize="19" FontWeight="SemiBold" TextAlignment="Center"/>
+                    <TextBlock x:Name="ScoreText" Text="Score: 0" Foreground="#FDE68A" FontSize="19" FontWeight="SemiBold" TextAlignment="Center"/>
+                    <TextBlock x:Name="LevelText" Text="Nivel: 1" Foreground="#93C5FD" FontSize="19" FontWeight="SemiBold" TextAlignment="Center"/>
                 </StackPanel>
 
-                <Button Grid.Column="2" x:Name="RetryButton" Content="Reintentar" Width="118" Height="34" Click="OnRetryClick"/>
-            </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                    <Button x:Name="RetryButton" Content="Reiniciar partida" Width="170" Height="36" Click="OnRetryClick"/>
+                    <Button x:Name="BackToMenuButton" Content="Volver al menú" Width="170" Height="36" Click="OnBackToMenuClick"/>
+                </StackPanel>
+            </StackPanel>
         </Border>
 
         <Grid Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,14,0,6">
             <Border Width="624" Height="624" CornerRadius="14" BorderBrush="#334155" BorderThickness="2" Background="#020617" Padding="12">
                 <Canvas x:Name="GameCanvas" Width="600" Height="600" Background="#0D1B2A">
-                    <Image x:Name="PacmanOpen" Width="32" Height="32" Canvas.Left="40" Canvas.Top="140" Source="/Assets/Images/pacman1.png"/>
-                    <Image x:Name="PacmanClosed" Width="32" Height="32" Canvas.Left="40" Canvas.Top="140" Source="/Assets/Images/pacman2.png" IsVisible="False"/>
+                    <Image x:Name="PacmanOpen" Width="34" Height="34" Canvas.Left="40" Canvas.Top="140" Source="/Assets/Images/pacman1.png"/>
+                    <Image x:Name="PacmanClosed" Width="34" Height="34" Canvas.Left="40" Canvas.Top="140" Source="/Assets/Images/pacman2.png" IsVisible="False"/>
 
                     <Image x:Name="RedGhost" Width="32" Height="32" Canvas.Left="300" Canvas.Top="300" Source="/Assets/Images/blinky.png"/>
                     <Image x:Name="BlueGhost" Width="32" Height="32" Canvas.Left="260" Canvas.Top="300" Source="/Assets/Images/inky.png"/>

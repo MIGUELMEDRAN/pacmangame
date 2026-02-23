@@ -19,7 +19,7 @@ public class GameViewModel : IDisposable
     private const double BoardSize = 600;
     private const double BorderThickness = 20;
     private const double CellSize = 10;
-    private const double CollisionInset = 0.25;
+    private const double CollisionInset = 2;
     private const double LaneSnapTolerance = 6;
     private const double PacmanStep = 8;
     private const double GhostStep = 8;
@@ -275,7 +275,7 @@ public class GameViewModel : IDisposable
         BuildGhosts(config);
 
         _view.UpdateTheme(config.CanvasColor);
-        _view.UpdateLevelDisplay(level, config.ThemeName);
+        _view.UpdateLevelDisplay(level);
     }
 
     private void ResetPacmanPosition()
@@ -365,7 +365,7 @@ public class GameViewModel : IDisposable
             };
 
             ghost.Move(spawn.X, spawn.Y);
-            _ghostStates.Add(new GhostState(ghost, image));
+            _ghostStates.Add(new GhostState(ghost, image, spawn.X, spawn.Y));
         }
 
         _view.BossImage.IsVisible = false;
@@ -461,32 +461,41 @@ public class GameViewModel : IDisposable
 
     private void CheckGhostCollision()
     {
-        var pacmanBounds = Pacman.GetBounds();
+        var pacmanBounds = DeflateRect(Pacman.GetBounds(), 5);
 
         foreach (var state in _ghostStates.Where(s => s.Ghost.IsActive).ToList())
         {
-            if (!state.Ghost.GetBounds().Intersects(pacmanBounds))
+            var ghostBounds = DeflateRect(state.Ghost.GetBounds(), 5);
+            if (!ghostBounds.Intersects(pacmanBounds))
             {
                 continue;
             }
 
             if (state.Ghost.IsVulnerable)
             {
-                state.Ghost.IsActive = false;
-                state.Image.IsVisible = false;
                 AddScore(200);
 
-                if (_level == 3 && !_bossSpawned && _ghostStates.Where(s => !s.Ghost.IsBoss).All(s => !s.Ghost.IsActive))
+                if (_level == 3 && !state.Ghost.IsBoss && !_bossSpawned)
                 {
                     SpawnBoss();
                 }
 
+                RespawnGhost(state);
                 continue;
             }
 
             HandlePacmanHit();
             return;
         }
+    }
+
+    private void RespawnGhost(GhostState state)
+    {
+        state.Ghost.IsActive = true;
+        state.Ghost.IsVulnerable = false;
+        state.Image.IsVisible = true;
+        state.Image.Opacity = 1;
+        state.Ghost.Move(state.SpawnX, state.SpawnY);
     }
 
     private void HandlePacmanHit()
@@ -525,7 +534,7 @@ public class GameViewModel : IDisposable
         };
 
         ghost.Move(280, 280);
-        _ghostStates.Add(new GhostState(ghost, bossImage));
+        _ghostStates.Add(new GhostState(ghost, bossImage, 280, 280));
     }
 
     private void ActivatePowerMode()
@@ -537,7 +546,7 @@ public class GameViewModel : IDisposable
         foreach (var state in _ghostStates.Where(s => s.Ghost.IsActive && !s.Ghost.IsBoss))
         {
             state.Ghost.IsVulnerable = true;
-            state.Image.Opacity = 0.45;
+            state.Image.Opacity = 0.65;
         }
     }
 
@@ -626,6 +635,13 @@ public class GameViewModel : IDisposable
             Math.Max(1, height - (CollisionInset * 2)));
 
         return !_walls.Any(w => w.Intersects(safeBounds));
+    }
+
+    private static Rect DeflateRect(Rect rect, double inset)
+    {
+        var width = Math.Max(1, rect.Width - (inset * 2));
+        var height = Math.Max(1, rect.Height - (inset * 2));
+        return new Rect(rect.X + inset, rect.Y + inset, width, height);
     }
 
     private static bool IsPerpendicular(Direction a, Direction b)
@@ -730,7 +746,7 @@ public class GameViewModel : IDisposable
         };
     }
 
-    private sealed record GhostState(Ghost Ghost, Image Image);
+    private sealed record GhostState(Ghost Ghost, Image Image, double SpawnX, double SpawnY);
 
     private sealed record LevelConfig(
         string ThemeName,

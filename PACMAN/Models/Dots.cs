@@ -11,10 +11,16 @@ namespace PACMAN.Models;
 
 public class Dots
 {
+    private const int GridSpacing = 20;
+    private const int GridStart = 30;
+    private const int GridEnd = 570;
+    private const double DotSize = 5;
+
     public List<Ellipse> SmallDots { get; } = new();
     public List<Control> BigDots { get; } = new();
 
     private readonly AudioPlayer _audioPlayer;
+    private HashSet<(int X, int Y)> _reachableNodes = new();
 
     public event Action<int>? OnScore;
     public event Action? OnPowerUpCollected;
@@ -39,20 +45,18 @@ public class Dots
 
         SmallDots.Clear();
         BigDots.Clear();
+        _reachableNodes.Clear();
     }
 
     public void CreateDots(Canvas canvas, List<Rect> walls, double spawnX, double spawnY)
     {
-        const int spacing = 30;
-        const double dotSize = 6;
-
         var candidates = new HashSet<(int X, int Y)>();
 
-        for (var y = 30; y < 570; y += spacing)
+        for (var y = GridStart; y < GridEnd; y += GridSpacing)
         {
-            for (var x = 30; x < 570; x += spacing)
+            for (var x = GridStart; x < GridEnd; x += GridSpacing)
             {
-                var dotRect = new Rect(x, y, dotSize, dotSize);
+                var dotRect = new Rect(x, y, DotSize, DotSize);
                 if (walls.Exists(wall => wall.Intersects(dotRect)))
                 {
                     continue;
@@ -68,14 +72,14 @@ public class Dots
         }
 
         var start = FindClosestNode(candidates, spawnX, spawnY);
-        var reachable = CalculateReachableNodes(candidates, start, spacing);
+        _reachableNodes = CalculateReachableNodes(candidates, start, GridSpacing);
 
-        foreach (var (x, y) in reachable.OrderBy(node => node.Y).ThenBy(node => node.X))
+        foreach (var (x, y) in _reachableNodes.OrderBy(node => node.Y).ThenBy(node => node.X))
         {
             var dot = new Ellipse
             {
-                Width = dotSize,
-                Height = dotSize,
+                Width = DotSize,
+                Height = DotSize,
                 Fill = new SolidColorBrush(Color.Parse("#FFF3B0"))
             };
 
@@ -97,6 +101,11 @@ public class Dots
 
         foreach (var (x, y) in positions)
         {
+            if (!IsReachableForPacman(x, y))
+            {
+                continue;
+            }
+
             var powerUp = new Ellipse
             {
                 Width = 18,
@@ -157,6 +166,20 @@ public class Dots
         {
             OnBoardCleared?.Invoke();
         }
+    }
+
+    private bool IsReachableForPacman(double x, double y)
+    {
+        if (_reachableNodes.Count == 0)
+        {
+            return true;
+        }
+
+        var nearest = _reachableNodes
+            .OrderBy(node => Math.Abs(node.X - x) + Math.Abs(node.Y - y))
+            .First();
+
+        return Math.Abs(nearest.X - x) <= GridSpacing && Math.Abs(nearest.Y - y) <= GridSpacing;
     }
 
     private static (int X, int Y) FindClosestNode(HashSet<(int X, int Y)> nodes, double x, double y)

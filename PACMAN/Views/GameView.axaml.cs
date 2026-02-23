@@ -62,10 +62,9 @@ public partial class GameView : UserControl
         LivesText.Text = $"Vidas: {icons}";
     }
 
-    public void UpdateLevelDisplay(int level, string theme)
+    public void UpdateLevelDisplay(int level)
     {
         LevelText.Text = $"Nivel: {level}";
-        ThemeText.Text = $"Tema: {theme}";
     }
 
     public void UpdateTheme(Color canvasColor)
