@@ -5,6 +5,7 @@ using Avalonia.Interactivity;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Layout;
+using Avalonia.Rendering;
 using PACMAN.Services;
 
 namespace PACMAN.Views;
@@ -75,7 +76,7 @@ public partial class MainMenuView : UserControl
         (this.VisualRoot as MainWindow)?.Close();
     }
 
-    private static Window? TryGetOwnerWindow(Visual? root)
+    private static Window? TryGetOwnerWindow(IRenderRoot? root)
     {
         return root as Window;
     }
