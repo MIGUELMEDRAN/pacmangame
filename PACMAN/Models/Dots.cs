@@ -101,10 +101,7 @@ public class Dots
 
         foreach (var (x, y) in positions)
         {
-            if (!IsReachableForPacman(x, y))
-            {
-                continue;
-            }
+            var placement = GetReachablePlacement(x, y);
 
             var powerUp = new Ellipse
             {
@@ -122,8 +119,8 @@ public class Dots
                 StrokeThickness = 1.5
             };
 
-            Canvas.SetLeft(powerUp, x);
-            Canvas.SetTop(powerUp, y);
+            Canvas.SetLeft(powerUp, placement.X);
+            Canvas.SetTop(powerUp, placement.Y);
             canvas.Children.Add(powerUp);
             BigDots.Add(powerUp);
         }
@@ -168,18 +165,18 @@ public class Dots
         }
     }
 
-    private bool IsReachableForPacman(double x, double y)
+    private (double X, double Y) GetReachablePlacement(double x, double y)
     {
         if (_reachableNodes.Count == 0)
         {
-            return true;
+            return (x, y);
         }
 
         var nearest = _reachableNodes
             .OrderBy(node => Math.Abs(node.X - x) + Math.Abs(node.Y - y))
             .First();
 
-        return Math.Abs(nearest.X - x) <= GridSpacing && Math.Abs(nearest.Y - y) <= GridSpacing;
+        return (nearest.X, nearest.Y);
     }
 
     private static (int X, int Y) FindClosestNode(HashSet<(int X, int Y)> nodes, double x, double y)

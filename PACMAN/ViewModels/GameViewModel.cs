@@ -21,8 +21,8 @@ public class GameViewModel : IDisposable
     private const double CellSize = 10;
     private const double CollisionInset = 2;
     private const double LaneSnapTolerance = 6;
-    private const double PacmanStep = 8;
-    private const double GhostStep = 8;
+    private const double PacmanStep = 10;
+    private const double GhostStep = 10;
 
     private readonly GameView _view;
     private readonly Canvas _canvas;
@@ -119,6 +119,12 @@ public class GameViewModel : IDisposable
         }
 
         _desiredDirection = direction;
+
+        if (_currentDirection == Direction.None)
+        {
+            _currentDirection = direction;
+            Pacman.Rotate(DirectionAngle(_currentDirection));
+        }
     }
 
     private static Direction GetDirection(Key key)
@@ -709,7 +715,7 @@ public class GameViewModel : IDisposable
                 "Aurora",
                 Color.Parse("#0D1B2A"),
                 Color.Parse("#3A86FF"),
-                2,
+                3,
                 new[] { (300d, 300d), (260d, 300d), (320d, 260d), (240d, 260d) },
                 new (double x, double y, double w, double h)[]
                 {
@@ -734,7 +740,7 @@ public class GameViewModel : IDisposable
                 "Crimson Forge",
                 Color.Parse("#2B0A0A"),
                 Color.Parse("#FF7F11"),
-                4,
+                3,
                 new[] { (300d, 300d), (260d, 300d), (340d, 300d), (300d, 260d) },
                 new (double x, double y, double w, double h)[]
                 {
