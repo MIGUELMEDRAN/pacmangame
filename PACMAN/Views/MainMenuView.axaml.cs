@@ -49,7 +49,8 @@ public partial class MainMenuView : UserControl
                 }
 
                 var scoreWindow = new ScoreBoardWindow(formattedScores);
-                if (VisualRoot is Window owner)
+                var owner = TryGetOwnerWindow(VisualRoot);
+                if (owner is not null)
                 {
                     await scoreWindow.ShowDialog(owner);
                 }
@@ -72,6 +73,11 @@ public partial class MainMenuView : UserControl
     private void ExitClick(object? sender, RoutedEventArgs e)
     {
         (this.VisualRoot as MainWindow)?.Close();
+    }
+
+    private static Window? TryGetOwnerWindow(Visual? root)
+    {
+        return root as Window;
     }
 
     private async Task MessageBox(string message)
@@ -102,7 +108,8 @@ public partial class MainMenuView : UserControl
             }
         };
         
-        if (VisualRoot is Window owner)
+        var owner = TryGetOwnerWindow(VisualRoot);
+        if (owner is not null)
         {
             await dialog.ShowDialog(owner);
             return;
