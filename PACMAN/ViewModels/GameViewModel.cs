@@ -16,6 +16,11 @@ namespace PACMAN.ViewModels;
 
 public class GameViewModel
 {
+    private const double BoardSize = 600;
+    private const double BorderThickness = 20;
+    private const double CellSize = 10;
+    private const double CollisionInset = 1.25;
+
     private readonly GameView _view;
     private readonly Canvas _canvas;
     private readonly AudioPlayer _audio;
@@ -26,12 +31,10 @@ public class GameViewModel
     private readonly List<Rect> _walls = new();
     private readonly List<Rectangle> _wallShapes = new();
     private readonly List<GhostState> _ghostStates = new();
-    private readonly Random _random = new();
-
     private readonly Dictionary<int, LevelConfig> _levels;
 
     private int _score;
-    private int _level = 1;
+    private int _level;
     private bool _isPowerMode;
     private bool _bossSpawned;
     private bool _isGameFinished;
@@ -44,30 +47,36 @@ public class GameViewModel
         _view = view;
         _canvas = canvas;
         _audio = audio;
+
         Pacman = new Pacman(open, closed);
         Dots = new Dots(audio);
-
         _levels = BuildLevelConfigs();
 
-        Dots.OnScore += points =>
-        {
-            _score += points;
-            _view.UpdateScoreDisplay(_score);
-            ScoreService.UpdateScore(_score);
-        };
+        Dots.OnScore += AddScore;
         Dots.OnPowerUpCollected += ActivatePowerMode;
         Dots.OnBoardCleared += AdvanceLevel;
 
-        _animationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(180) };
+        _animationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(155) };
         _animationTimer.Tick += (_, _) => Pacman.ToggleMouth();
 
         _ghostTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
         _ghostTimer.Tick += (_, _) => MoveGhosts();
 
-        _powerModeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(8) };
+        _powerModeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(7) };
         _powerModeTimer.Tick += (_, _) => DisablePowerMode();
 
-        LoadLevel(1, true);
+        RetryGame();
+    }
+
+    public void RetryGame()
+    {
+        _isGameFinished = false;
+        _score = 0;
+        _view.HideStatusOverlay();
+        _view.UpdateScoreDisplay(_score);
+        ScoreService.UpdateScore(_score);
+
+        LoadLevel(1);
 
         _animationTimer.Start();
         _ghostTimer.Start();
@@ -80,66 +89,61 @@ public class GameViewModel
             return;
         }
 
-        var newX = Pacman.X;
-        var newY = Pacman.Y;
-        var angle = 0d;
-
-        switch (e.Key)
-        {
-            case Key.Up:
-            case Key.W:
-                newY -= Pacman.MoveStep;
-                angle = 270;
-                break;
-            case Key.Down:
-            case Key.S:
-                newY += Pacman.MoveStep;
-                angle = 90;
-                break;
-            case Key.Left:
-            case Key.A:
-                newX -= Pacman.MoveStep;
-                angle = 180;
-                break;
-            case Key.Right:
-            case Key.D:
-                newX += Pacman.MoveStep;
-                angle = 0;
-                break;
-            default:
-                return;
-        }
-
-        var futureBounds = new Rect(newX, newY, Pacman.OpenImage.Bounds.Width, Pacman.OpenImage.Bounds.Height);
-        if (_walls.Exists(w => w.Intersects(futureBounds)))
+        var movement = GetMovement(e.Key);
+        if (movement == default)
         {
             return;
         }
 
-        Pacman.Move(newX, newY);
-        Pacman.Rotate(angle);
+        Pacman.Rotate(movement.Angle);
 
+        var targetX = Clamp(Pacman.X + movement.Dx, BorderThickness, BoardSize - BorderThickness - Pacman.Width);
+        var targetY = Clamp(Pacman.Y + movement.Dy, BorderThickness, BoardSize - BorderThickness - Pacman.Height);
+
+        var finalX = Pacman.X;
+        var finalY = Pacman.Y;
+
+        if (IsSpaceFree(targetX, Pacman.Y, Pacman.Width, Pacman.Height))
+        {
+            finalX = targetX;
+        }
+
+        if (IsSpaceFree(finalX, targetY, Pacman.Width, Pacman.Height))
+        {
+            finalY = targetY;
+        }
+
+        if (finalX == Pacman.X && finalY == Pacman.Y)
+        {
+            return;
+        }
+
+        Pacman.Move(finalX, finalY);
         Dots.CheckDotCollision(_canvas, Pacman.GetBounds());
         CheckGhostCollision();
     }
 
-    private void LoadLevel(int level, bool resetScore)
+    private static (double Dx, double Dy, double Angle) GetMovement(Key key)
+    {
+        return key switch
+        {
+            Key.Up or Key.W => (0, -CellSize, 270),
+            Key.Down or Key.S => (0, CellSize, 90),
+            Key.Left or Key.A => (-CellSize, 180),
+            Key.Right or Key.D => (CellSize, 0, 0),
+            _ => default
+        };
+    }
+
+    private void LoadLevel(int level)
     {
         _level = level;
-        var config = _levels[level];
-
-        if (resetScore)
-        {
-            _score = 0;
-            ScoreService.UpdateScore(0);
-            _view.UpdateScoreDisplay(0);
-        }
-
         _isPowerMode = false;
         _bossSpawned = false;
         _powerModeTimer.Stop();
 
-        Pacman.MoveStep = 10;
+        var config = _levels[level];
+
         Pacman.Move(40, 140);
         Pacman.Rotate(0);
 
@@ -151,18 +155,11 @@ public class GameViewModel
         _view.UpdateLevelDisplay(level, config.ThemeName);
     }
 
-    private void BuildDots()
-    {
-        Dots.Reset(_canvas);
-        Dots.CreateDots(_canvas, _walls);
-        Dots.CreatePowerUps(_canvas, _level);
-    }
-
     private void BuildMaze(LevelConfig config)
     {
-        foreach (var shape in _wallShapes)
+        foreach (var wall in _wallShapes)
         {
-            _canvas.Children.Remove(shape);
+            _canvas.Children.Remove(wall);
         }
 
         _wallShapes.Clear();
@@ -174,32 +171,177 @@ public class GameViewModel
             {
                 Width = w,
                 Height = h,
-                Fill = new SolidColorBrush(config.WallColor)
+                Fill = new SolidColorBrush(config.WallColor),
+                RadiusX = 5,
+                RadiusY = 5
             };
 
             Canvas.SetLeft(wall, x);
             Canvas.SetTop(wall, y);
             _canvas.Children.Add(wall);
+
             _wallShapes.Add(wall);
             _walls.Add(new Rect(x, y, w, h));
         }
+    }
+
+    private void BuildDots()
+    {
+        Dots.Reset(_canvas);
+        Dots.CreateDots(_canvas, _walls);
+        Dots.CreatePowerUps(_canvas, _level);
     }
 
     private void BuildGhosts(LevelConfig config)
     {
         _ghostStates.Clear();
 
-        var images = _view.GhostImages;
-
-        for (var i = 0; i < images.Length; i++)
+        for (var i = 0; i < _view.GhostImages.Length; i++)
         {
-            var image = images[i];
-            var isVisible = i < config.GhostCount;
-            image.IsVisible = isVisible;
+            var image = _view.GhostImages[i];
+            image.IsVisible = i < config.GhostCount;
+            image.Opacity = 1;
 
-            if (!isVisible)
+            if (!image.IsVisible)
             {
                 continue;
+            }
+
+            var spawn = config.Spawns[i];
+            var ghost = new Ghost(spawn.X, spawn.Y)
+            {
+                Width = image.Width,
+                Height = image.Height,
+                Speed = CellSize
+            };
+
+            ghost.PositionChanged += (x, y) =>
+            {
+                Canvas.SetLeft(image, x);
+                Canvas.SetTop(image, y);
+            };
+
+            ghost.Move(spawn.X, spawn.Y);
+            _ghostStates.Add(new GhostState(ghost, image));
+        }
+
+        _view.BossImage.IsVisible = false;
+        _view.BossImage.Opacity = 1;
+    }
+
+    private void MoveGhosts()
+    {
+        if (_isGameFinished)
+        {
+            return;
+        }
+
+        foreach (var state in _ghostStates.Where(s => s.Ghost.IsActive).ToList())
+        {
+            MoveGhost(state);
+        }
+
+        CheckGhostCollision();
+    }
+
+    private void MoveGhost(GhostState state)
+    {
+        var current = Quantize(state.Ghost.X, state.Ghost.Y);
+        var target = Quantize(Pacman.X, Pacman.Y);
+
+        var candidates = NextCells(current, (int)state.Ghost.Speed)
+            .Where(next => IsSpaceFree(next.X, next.Y, state.Ghost.Width, state.Ghost.Height))
+            .ToList();
+
+        if (candidates.Count == 0)
+        {
+            var recovered = RecoverGhostPosition(state);
+            if (!recovered)
+            {
+                return;
+            }
+
+            current = Quantize(state.Ghost.X, state.Ghost.Y);
+            candidates = NextCells(current, (int)state.Ghost.Speed)
+                .Where(next => IsSpaceFree(next.X, next.Y, state.Ghost.Width, state.Ghost.Height))
+                .ToList();
+
+            if (candidates.Count == 0)
+            {
+                return;
+            }
+        }
+
+        var nextStep = _isPowerMode && !state.Ghost.IsBoss
+            ? candidates.OrderByDescending(c => ManhattanDistance(c, target)).First()
+            : FindStepTowardTarget(current, target, candidates, state.Ghost.Width, state.Ghost.Height, (int)state.Ghost.Speed);
+
+        state.Ghost.Move(nextStep.X, nextStep.Y);
+    }
+
+    private bool RecoverGhostPosition(GhostState state)
+    {
+        var origin = Quantize(state.Ghost.X, state.Ghost.Y);
+
+        for (var radius = 1; radius <= 3; radius++)
+        {
+            var range = radius * (int)CellSize;
+            var candidates = new (int X, int Y)[]
+            {
+                (origin.X + range, origin.Y),
+                (origin.X - range, origin.Y),
+                (origin.X, origin.Y + range),
+                (origin.X, origin.Y - range)
+            };
+
+            var candidate = candidates.FirstOrDefault(c => IsSpaceFree(c.X, c.Y, state.Ghost.Width, state.Ghost.Height));
+            if (candidate != default)
+            {
+                state.Ghost.Move(candidate.X, candidate.Y);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private (int X, int Y) FindStepTowardTarget(
+        (int X, int Y) current,
+        (int X, int Y) target,
+        List<(int X, int Y)> candidates,
+        double width,
+        double height,
+        int step)
+    {
+        var queue = new Queue<(int X, int Y)>();
+        var visited = new HashSet<(int X, int Y)> { current };
+        var parent = new Dictionary<(int X, int Y), (int X, int Y)>();
+
+        queue.Enqueue(current);
+
+        while (queue.Count > 0)
+        {
+            var node = queue.Dequeue();
+            if (node == target)
+            {
+                break;
+            }
+
+            foreach (var next in NextCells(node, step))
+            {
+                if (visited.Contains(next))
+                {
+                    continue;
+                }
+
+                if (!IsSpaceFree(next.X, next.Y, width, height))
+                {
+                    continue;
+                }
+
+                visited.Add(next);
+                parent[next] = node;
+                queue.Enqueue(next);
             }
 
             var spawn = config.SpawnPoints[i % config.SpawnPoints.Length];
@@ -218,140 +360,28 @@ public class GameViewModel
             _ghostStates.Add(new GhostState(ghost, image, spawn.X, spawn.Y));
         }
 
-        _view.BossImage.IsVisible = false;
-    }
-
-    private void MoveGhosts()
-    {
-        if (_isGameFinished)
-        {
-            return;
-        }
-
-        foreach (var state in _ghostStates.Where(x => x.Ghost.IsActive).ToList())
-        {
-            MoveSingleGhost(state);
-        }
-
-        CheckGhostCollision();
-    }
-
-    private void MoveSingleGhost(GhostState state)
-    {
-        var current = Quantize(state.Ghost.X, state.Ghost.Y);
-        var target = Quantize(Pacman.X, Pacman.Y);
-        var candidates = new List<(int X, int Y)>
-        {
-            (current.X + 10, current.Y),
-            (current.X - 10, current.Y),
-            (current.X, current.Y + 10),
-            (current.X, current.Y - 10)
-        };
-
-        var valid = candidates
-            .Where(step => IsCellValid(step.X, step.Y, state.Ghost.Width, state.Ghost.Height))
-            .ToList();
-
-        if (valid.Count == 0)
-        {
-            return;
-        }
-
-        (int X, int Y) best;
-        if (_isPowerMode && !state.Ghost.IsBoss)
-        {
-            best = valid.OrderByDescending(step => Distance(step, target)).First();
-        }
-        else
-        {
-            best = FindBestStepByPath(current, target, valid);
-        }
-
-        var jitterX = state.Ghost.IsBoss ? _random.Next(-1, 2) * 2 : 0;
-        var jitterY = state.Ghost.IsBoss ? _random.Next(-1, 2) * 2 : 0;
-        state.Ghost.Move(best.X + jitterX, best.Y + jitterY);
-    }
-
-    private (int X, int Y) FindBestStepByPath((int X, int Y) current, (int X, int Y) target, List<(int X, int Y)> valid)
-    {
-        var queue = new Queue<(int X, int Y)>();
-        var visited = new HashSet<(int X, int Y)> { current };
-        var parent = new Dictionary<(int X, int Y), (int X, int Y)>();
-
-        queue.Enqueue(current);
-
-        while (queue.Count > 0)
-        {
-            var node = queue.Dequeue();
-            if (node == target)
-            {
-                break;
-            }
-
-            foreach (var next in NextCells(node))
-            {
-                if (visited.Contains(next))
-                {
-                    continue;
-                }
-
-                if (!IsCellValid(next.X, next.Y, 30, 30))
-                {
-                    continue;
-                }
-
-                visited.Add(next);
-                parent[next] = node;
-                queue.Enqueue(next);
-            }
-        }
-
         if (!visited.Contains(target))
         {
-            return valid.OrderBy(step => Distance(step, target)).First();
+            return candidates.OrderBy(c => ManhattanDistance(c, target)).First();
         }
 
-        var walk = target;
-        while (parent.TryGetValue(walk, out var previous) && previous != current)
+        var pathNode = target;
+        while (parent.TryGetValue(pathNode, out var previous) && previous != current)
         {
-            walk = previous;
+            pathNode = previous;
         }
 
-        if (valid.Contains(walk))
-        {
-            return walk;
-        }
-
-        return valid.OrderBy(step => Distance(step, target)).First();
+        return candidates.Contains(pathNode)
+            ? pathNode
+            : candidates.OrderBy(c => ManhattanDistance(c, target)).First();
     }
 
-    private IEnumerable<(int X, int Y)> NextCells((int X, int Y) point)
+    private static IEnumerable<(int X, int Y)> NextCells((int X, int Y) node, int step)
     {
-        yield return (point.X + 10, point.Y);
-        yield return (point.X - 10, point.Y);
-        yield return (point.X, point.Y + 10);
-        yield return (point.X, point.Y - 10);
-    }
-
-    private bool IsCellValid(int x, int y, double width, double height)
-    {
-        if (x < 20 || y < 20 || x + width > 580 || y + height > 580)
-        {
-            return false;
-        }
-
-        var bounds = new Rect(x, y, width, height);
-        return !_walls.Exists(w => w.Intersects(bounds));
-    }
-
-    private static int Distance((int X, int Y) a, (int X, int Y) b)
-    {
-        return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
-    }
-
-    private static (int X, int Y) Quantize(double x, double y)
-    {
-        return ((int)Math.Round(x / 10d) * 10, (int)Math.Round(y / 10d) * 10);
+        yield return (node.X + step, node.Y);
+        yield return (node.X - step, node.Y);
+        yield return (node.X, node.Y + step);
+        yield return (node.X, node.Y - step);
     }
 
     private void ActivatePowerMode()
@@ -360,7 +390,7 @@ public class GameViewModel
         _powerModeTimer.Stop();
         _powerModeTimer.Start();
 
-        foreach (var state in _ghostStates.Where(x => x.Ghost.IsActive && !x.Ghost.IsBoss))
+        foreach (var state in _ghostStates.Where(s => s.Ghost.IsActive && !s.Ghost.IsBoss))
         {
             state.Ghost.IsVulnerable = true;
             state.Image.Opacity = 0.45;
@@ -372,17 +402,18 @@ public class GameViewModel
         _isPowerMode = false;
         _powerModeTimer.Stop();
 
-        foreach (var state in _ghostStates.Where(x => x.Ghost.IsActive))
+        foreach (var state in _ghostStates.Where(s => s.Ghost.IsActive))
         {
             state.Ghost.IsVulnerable = false;
             state.Image.Opacity = 1;
         }
     }
 
-    private void CheckGhostCollision()
+    private void MoveSingleGhost(GhostState state)
     {
         var pacmanBounds = Pacman.GetBounds();
-        foreach (var state in _ghostStates.Where(x => x.Ghost.IsActive).ToList())
+
+        foreach (var state in _ghostStates.Where(s => s.Ghost.IsActive).ToList())
         {
             if (!state.Ghost.GetBounds().Intersects(pacmanBounds))
             {
@@ -393,11 +424,9 @@ public class GameViewModel
             {
                 state.Ghost.IsActive = false;
                 state.Image.IsVisible = false;
-                _score += 200;
-                _view.UpdateScoreDisplay(_score);
-                ScoreService.UpdateScore(_score);
+                AddScore(200);
 
-                if (_level == 3 && !_bossSpawned && _ghostStates.Where(g => !g.Ghost.IsBoss).All(g => !g.Ghost.IsActive))
+                if (_level == 3 && !_bossSpawned && _ghostStates.Where(s => !s.Ghost.IsBoss).All(s => !s.Ghost.IsActive))
                 {
                     SpawnBoss();
                 }
@@ -408,6 +437,13 @@ public class GameViewModel
             EndGame();
             return;
         }
+
+        if (valid.Contains(walk))
+        {
+            return walk;
+        }
+
+        return valid.OrderBy(step => Distance(step, target)).First();
     }
 
     private void SpawnBoss()
@@ -416,25 +452,30 @@ public class GameViewModel
 
         var bossImage = _view.BossImage;
         bossImage.IsVisible = true;
-        bossImage.Opacity = 1;
 
         var ghost = new Ghost(280, 280)
         {
-            Width = 55,
-            Height = 55,
-            Speed = 10,
-            IsBoss = true,
-            IsVulnerable = false
+            Width = bossImage.Width,
+            Height = bossImage.Height,
+            Speed = CellSize,
+            IsBoss = true
         };
 
-        ghost.PositionChanged += (newX, newY) =>
+        ghost.PositionChanged += (x, y) =>
         {
-            Canvas.SetLeft(bossImage, newX);
-            Canvas.SetTop(bossImage, newY);
+            Canvas.SetLeft(bossImage, x);
+            Canvas.SetTop(bossImage, y);
         };
 
         ghost.Move(280, 280);
-        _ghostStates.Add(new GhostState(ghost, bossImage, 280, 280));
+        _ghostStates.Add(new GhostState(ghost, bossImage));
+    }
+
+    private void AddScore(int points)
+    {
+        _score += points;
+        _view.UpdateScoreDisplay(_score);
+        ScoreService.UpdateScore(_score);
     }
 
     private void AdvanceLevel()
@@ -444,12 +485,13 @@ public class GameViewModel
             _isGameFinished = true;
             _animationTimer.Stop();
             _ghostTimer.Stop();
+            _powerModeTimer.Stop();
             _view.ShowWinMessage();
             return;
         }
 
         _audio.LevelUp();
-        LoadLevel(_level + 1, false);
+        LoadLevel(_level + 1);
     }
 
     private void EndGame()
@@ -462,60 +504,94 @@ public class GameViewModel
         _view.ShowGameOver();
     }
 
+    private bool IsSpaceFree(double x, double y, double width, double height)
+    {
+        if (x < BorderThickness || y < BorderThickness)
+        {
+            return false;
+        }
+
+        if (x + width > BoardSize - BorderThickness || y + height > BoardSize - BorderThickness)
+        {
+            return false;
+        }
+
+        var safeBounds = new Rect(
+            x + CollisionInset,
+            y + CollisionInset,
+            Math.Max(1, width - (CollisionInset * 2)),
+            Math.Max(1, height - (CollisionInset * 2)));
+
+        return !_walls.Any(w => w.Intersects(safeBounds));
+    }
+
+    private static (int X, int Y) Quantize(double x, double y)
+    {
+        return ((int)Math.Round(x / CellSize) * (int)CellSize, (int)Math.Round(y / CellSize) * (int)CellSize);
+    }
+
+    private static int ManhattanDistance((int X, int Y) a, (int X, int Y) b)
+    {
+        return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
+    }
+
+    private static double Clamp(double value, double min, double max)
+    {
+        return Math.Max(min, Math.Min(max, value));
+    }
+
     private static Dictionary<int, LevelConfig> BuildLevelConfigs()
     {
         return new Dictionary<int, LevelConfig>
         {
             [1] = new LevelConfig(
-                "Classic",
-                Color.Parse("#0B0D10"),
-                Color.Parse("#2A4BFF"),
+                "Aurora",
+                Color.Parse("#0D1B2A"),
+                Color.Parse("#3A86FF"),
                 2,
-                10,
                 new[] { (300d, 300d), (260d, 300d), (320d, 260d), (240d, 260d) },
                 new (double x, double y, double w, double h)[]
                 {
                     (0, 0, 600, 20), (0, 580, 600, 20), (0, 0, 20, 600), (580, 0, 20, 600),
-                    (100, 100, 120, 20), (100, 200, 20, 130), (200, 280, 150, 20), (380, 100, 20, 180),
-                    (420, 320, 120, 20), (160, 420, 20, 130), (260, 460, 180, 20)
+                    (80, 80, 140, 20), (80, 80, 20, 140), (220, 160, 160, 20), (380, 80, 20, 180),
+                    (120, 260, 180, 20), (300, 360, 180, 20), (180, 460, 240, 20), (500, 220, 20, 180)
                 }),
             [2] = new LevelConfig(
-                "Neon Grid",
-                Color.Parse("#160F29"),
-                Color.Parse("#43D9AD"),
+                "Cobalt Lab",
+                Color.Parse("#1B1B2F"),
+                Color.Parse("#06D6A0"),
                 3,
-                10,
                 new[] { (300d, 300d), (240d, 300d), (360d, 300d), (300d, 240d) },
                 new (double x, double y, double w, double h)[]
                 {
                     (0, 0, 600, 20), (0, 580, 600, 20), (0, 0, 20, 600), (580, 0, 20, 600),
-                    (80, 80, 20, 220), (80, 80, 200, 20), (320, 80, 200, 20), (500, 80, 20, 220),
-                    (150, 350, 300, 20), (150, 350, 20, 170), (430, 350, 20, 170), (250, 200, 100, 20)
+                    (70, 70, 20, 220), (70, 70, 180, 20), (350, 70, 180, 20), (510, 70, 20, 220),
+                    (170, 200, 260, 20), (170, 200, 20, 170), (410, 200, 20, 170), (120, 430, 360, 20),
+                    (280, 290, 40, 140)
                 }),
             [3] = new LevelConfig(
-                "Volcanic Core",
+                "Crimson Forge",
                 Color.Parse("#2B0A0A"),
-                Color.Parse("#FF8A00"),
+                Color.Parse("#FF7F11"),
                 4,
-                10,
                 new[] { (300d, 300d), (260d, 300d), (340d, 300d), (300d, 260d) },
                 new (double x, double y, double w, double h)[]
                 {
                     (0, 0, 600, 20), (0, 580, 600, 20), (0, 0, 20, 600), (580, 0, 20, 600),
-                    (100, 80, 400, 20), (100, 80, 20, 170), (480, 80, 20, 170), (180, 220, 240, 20),
-                    (180, 220, 20, 220), (400, 220, 20, 220), (100, 500, 400, 20), (280, 320, 40, 180)
+                    (90, 70, 420, 20), (90, 70, 20, 170), (490, 70, 20, 170), (170, 170, 260, 20),
+                    (170, 170, 20, 180), (410, 170, 20, 180), (110, 390, 380, 20), (110, 390, 20, 130),
+                    (470, 390, 20, 130), (200, 510, 200, 20)
                 })
         };
     }
 
-    private sealed record GhostState(Ghost Ghost, Image Image, double SpawnX, double SpawnY);
+    private sealed record GhostState(Ghost Ghost, Image Image);
 
     private sealed record LevelConfig(
         string ThemeName,
         Color CanvasColor,
         Color WallColor,
         int GhostCount,
-        double GhostSpeed,
-        (double X, double Y)[] SpawnPoints,
+        (double X, double Y)[] Spawns,
         (double x, double y, double w, double h)[] Walls);
 }

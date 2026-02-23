@@ -2,7 +2,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Media;
-using Avalonia.Platform;
 using PACMAN.Audio;
 using System;
 using System.Collections.Generic;
@@ -51,9 +50,7 @@ public class Dots
             for (double x = 30; x < 570; x += spacing)
             {
                 var dotRect = new Rect(x, y, dotSize, dotSize);
-                var collides = walls.Exists(wall => wall.Intersects(dotRect));
-
-                if (collides)
+                if (walls.Exists(wall => wall.Intersects(dotRect)))
                 {
                     continue;
                 }
@@ -62,7 +59,7 @@ public class Dots
                 {
                     Width = dotSize,
                     Height = dotSize,
-                    Fill = Brushes.White
+                    Fill = new SolidColorBrush(Color.Parse("#FFF3B0"))
                 };
 
                 Canvas.SetLeft(dot, x);
@@ -84,12 +81,20 @@ public class Dots
 
         foreach (var (x, y) in positions)
         {
-            using var assetStream = AssetLoader.Open(new Uri("avares://PACMAN/Assets/Images/cherrys.jpg"));
-            var powerUp = new Image
+            var powerUp = new Ellipse
             {
-                Width = 20,
-                Height = 20,
-                Source = new Avalonia.Media.Imaging.Bitmap(assetStream)
+                Width = 18,
+                Height = 18,
+                Fill = new RadialGradientBrush
+                {
+                    GradientStops = new GradientStops
+                    {
+                        new GradientStop(Color.Parse("#FF4D6D"), 0.0),
+                        new GradientStop(Color.Parse("#FFB703"), 1.0)
+                    }
+                },
+                Stroke = new SolidColorBrush(Color.Parse("#FFD166")),
+                StrokeThickness = 1.5
             };
 
             Canvas.SetLeft(powerUp, x);
@@ -105,7 +110,6 @@ public class Dots
         {
             var dot = SmallDots[i];
             var dotBounds = new Rect(Canvas.GetLeft(dot), Canvas.GetTop(dot), dot.Width, dot.Height);
-
             if (!pacmanBounds.Intersects(dotBounds))
             {
                 continue;
@@ -121,7 +125,6 @@ public class Dots
         {
             var powerUp = BigDots[i];
             var dotBounds = new Rect(Canvas.GetLeft(powerUp), Canvas.GetTop(powerUp), powerUp.Width, powerUp.Height);
-
             if (!pacmanBounds.Intersects(dotBounds))
             {
                 continue;

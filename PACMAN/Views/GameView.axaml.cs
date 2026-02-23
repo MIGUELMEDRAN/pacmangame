@@ -33,6 +33,12 @@ public partial class GameView : UserControl
         _viewModel?.OnKeyDown(e);
     }
 
+    private void OnRetryClick(object? sender, RoutedEventArgs e)
+    {
+        _viewModel?.RetryGame();
+        Focus();
+    }
+
     private void OnBackToMenuClick(object? sender, RoutedEventArgs e)
     {
         if (VisualRoot is MainWindow mainWindow)
@@ -57,14 +63,23 @@ public partial class GameView : UserControl
         GameCanvas.Background = new SolidColorBrush(canvasColor);
     }
 
+    public void HideStatusOverlay()
+    {
+        StatusOverlay.IsVisible = false;
+    }
+
     public void ShowGameOver()
     {
-        GameOverText.IsVisible = true;
+        StatusTitle.Text = "Game Over";
+        StatusMessage.Text = "Perdiste. Presiona Reintentar";
+        StatusOverlay.IsVisible = true;
     }
 
     public void ShowWinMessage()
     {
-        WinText.IsVisible = true;
+        StatusTitle.Text = "Victoria";
+        StatusMessage.Text = "Completaste los 3 niveles";
+        StatusOverlay.IsVisible = true;
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
