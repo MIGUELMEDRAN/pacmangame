@@ -14,13 +14,15 @@ using System.Linq;
 
 namespace PACMAN.ViewModels;
 
-public class GameViewModel
+public class GameViewModel : IDisposable
 {
     private const double BoardSize = 600;
     private const double BorderThickness = 20;
     private const double CellSize = 10;
-    private const double CollisionInset = 2;
-    private const double LaneSnapTolerance = 4;
+    private const double CollisionInset = 0.25;
+    private const double LaneSnapTolerance = 6;
+    private const double PacmanStep = 8;
+    private const double GhostStep = 8;
 
     private readonly GameView _view;
     private readonly Canvas _canvas;
@@ -41,6 +43,7 @@ public class GameViewModel
     private bool _isPowerMode;
     private bool _bossSpawned;
     private bool _isGameFinished;
+    private bool _disposed;
 
     private Direction _currentDirection = Direction.None;
     private Direction _desiredDirection = Direction.None;
@@ -65,7 +68,7 @@ public class GameViewModel
         _animationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
         _animationTimer.Tick += (_, _) => Pacman.ToggleMouth();
 
-        _movementTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+        _movementTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(40) };
         _movementTimer.Tick += (_, _) => UpdatePacman();
 
         _ghostTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
@@ -79,6 +82,11 @@ public class GameViewModel
 
     public void RetryGame()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         _isGameFinished = false;
         _score = 0;
         _lives = 3;
@@ -99,7 +107,7 @@ public class GameViewModel
 
     public void OnKeyDown(KeyEventArgs e)
     {
-        if (_isGameFinished)
+        if (_isGameFinished || _disposed)
         {
             return;
         }
@@ -127,7 +135,7 @@ public class GameViewModel
 
     private void UpdatePacman()
     {
-        if (_isGameFinished)
+        if (_isGameFinished || _disposed)
         {
             return;
         }
@@ -272,6 +280,7 @@ public class GameViewModel
 
     private void ResetPacmanPosition()
     {
+        Pacman.MoveStep = PacmanStep;
         Pacman.Move(40, 140);
         _currentDirection = Direction.None;
         _desiredDirection = Direction.None;
@@ -322,7 +331,7 @@ public class GameViewModel
     private void BuildDots()
     {
         Dots.Reset(_canvas);
-        Dots.CreateDots(_canvas, _walls);
+        Dots.CreateDots(_canvas, _walls, 40, 140);
         Dots.CreatePowerUps(_canvas, _level);
     }
 
@@ -346,7 +355,7 @@ public class GameViewModel
             {
                 Width = image.Width,
                 Height = image.Height,
-                Speed = CellSize
+                Speed = GhostStep
             };
 
             ghost.PositionChanged += (x, y) =>
@@ -365,7 +374,7 @@ public class GameViewModel
 
     private void MoveGhosts()
     {
-        if (_isGameFinished)
+        if (_isGameFinished || _disposed)
         {
             return;
         }
@@ -505,7 +514,7 @@ public class GameViewModel
         {
             Width = bossImage.Width,
             Height = bossImage.Height,
-            Speed = CellSize,
+            Speed = GhostStep,
             IsBoss = true
         };
 
@@ -577,6 +586,25 @@ public class GameViewModel
         _powerModeTimer.Stop();
         _audio.Dead();
         _view.ShowGameOver();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        _animationTimer.Stop();
+        _movementTimer.Stop();
+        _ghostTimer.Stop();
+        _powerModeTimer.Stop();
+
+        Dots.OnScore -= AddScore;
+        Dots.OnPowerUpCollected -= ActivatePowerMode;
+        Dots.OnBoardCleared -= AdvanceLevel;
     }
 
     private bool IsSpaceFree(double x, double y, double width, double height)
