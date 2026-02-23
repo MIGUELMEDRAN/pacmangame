@@ -1,40 +1,61 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="PACMAN.Views.ScoreBoardWindow"
-        Title="Score Board"
-        Width="600" Height="800"
-        Background="Black">
-    
+        Title="Tabla de puntuaciones"
+        Width="520" Height="560"
+        MinWidth="460" MinHeight="460"
+        Background="#030712">
+
     <Grid>
         <Image Source="/Assets/Images/background.jpg"
                Stretch="UniformToFill"
-               Opacity="0.25"/>
-        
-        <Grid Margin="10">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-            
-            <TextBlock Text="Scores"
-                       FontSize="24"
-                       Foreground="Yellow"
-                       HorizontalAlignment="Center"
-                       Grid.Row="0"
-                       Margin="0,0,0,10"/>
-            
-            <ScrollViewer Height="200" Grid.Row="1">
-                <ItemsControl x:Name="ScoreList" FontSize="20">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding}"
-                                       Foreground="White"
-                                       Margin="5"/>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
-        </Grid>
+               Opacity="0.18"/>
+
+        <Border Margin="20"
+                Padding="20"
+                CornerRadius="14"
+                Background="#CC0F172A"
+                BorderBrush="#334155"
+                BorderThickness="1.5">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,14">
+                    <TextBlock Text="MEJORES PUNTAJES"
+                               FontSize="26"
+                               FontWeight="Bold"
+                               Foreground="#FACC15"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="Top 10"
+                               FontSize="14"
+                               Foreground="#93C5FD"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <ScrollViewer Grid.Row="1">
+                    <ItemsControl x:Name="ScoreList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#1E293B"
+                                        CornerRadius="8"
+                                        Margin="0,0,0,8"
+                                        Padding="12,8"
+                                        BorderBrush="#334155"
+                                        BorderThickness="1">
+                                    <TextBlock Text="{Binding}"
+                                               FontSize="18"
+                                               FontWeight="SemiBold"
+                                               Foreground="#E2E8F0"
+                                               HorizontalAlignment="Left"/>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

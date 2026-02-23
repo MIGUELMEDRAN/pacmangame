@@ -1,10 +1,30 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="PACMAN.Views.MainMenuView">
-    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
-        <TextBlock Text="PACMAN" FontSize="28" Foreground="Yellow"/>
-        <Button Content="Start Game" Width="250" Click="StartGameClick"/>
-        <Button Content="View Score" Width="250" Click="ViewScoreClick"/>
-        <Button Content="Exit" Width="250" Click="ExitClick"/>
-    </StackPanel>
+    <Border Width="520"
+            Padding="30"
+            CornerRadius="18"
+            Background="#D9111828"
+            BorderBrush="#44A3E0FF"
+            BorderThickness="2"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center">
+        <StackPanel Spacing="14">
+            <TextBlock Text="PACMAN"
+                       FontSize="44"
+                       FontWeight="Bold"
+                       Foreground="#FACC15"
+                       HorizontalAlignment="Center"/>
+            <TextBlock Text="Arcade clásico, controles modernos"
+                       FontSize="16"
+                       Foreground="#BFDBFE"
+                       HorizontalAlignment="Center"/>
+
+            <Border Height="1" Background="#33FFFFFF" Margin="0,8"/>
+
+            <Button Content="Iniciar partida" Width="250" Height="38" HorizontalAlignment="Center" Click="StartGameClick"/>
+            <Button Content="Ver puntuaciones" Width="250" Height="38" HorizontalAlignment="Center" Click="ViewScoreClick"/>
+            <Button Content="Salir" Width="250" Height="38" HorizontalAlignment="Center" Click="ExitClick"/>
+        </StackPanel>
+    </Border>
 </UserControl>

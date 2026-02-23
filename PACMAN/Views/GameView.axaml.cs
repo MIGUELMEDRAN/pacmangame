@@ -42,6 +42,8 @@ public partial class GameView : UserControl
 
     private void OnBackToMenuClick(object? sender, RoutedEventArgs e)
     {
+        _viewModel?.Dispose();
+
         if (VisualRoot is MainWindow mainWindow)
         {
             mainWindow.LoadMainMenuView();
@@ -60,10 +62,9 @@ public partial class GameView : UserControl
         LivesText.Text = $"Vidas: {icons}";
     }
 
-    public void UpdateLevelDisplay(int level, string theme)
+    public void UpdateLevelDisplay(int level)
     {
         LevelText.Text = $"Nivel: {level}";
-        ThemeText.Text = $"Tema: {theme}";
     }
 
     public void UpdateTheme(Color canvasColor)
@@ -93,6 +94,9 @@ public partial class GameView : UserControl
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
+        _viewModel?.Dispose();
         _audioPlayer?.Dispose();
+        _viewModel = null;
+        _audioPlayer = null;
     }
 }

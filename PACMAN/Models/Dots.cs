@@ -5,15 +5,22 @@ using Avalonia.Media;
 using PACMAN.Audio;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PACMAN.Models;
 
 public class Dots
 {
+    private const int GridSpacing = 20;
+    private const int GridStart = 30;
+    private const int GridEnd = 570;
+    private const double DotSize = 5;
+
     public List<Ellipse> SmallDots { get; } = new();
     public List<Control> BigDots { get; } = new();
 
     private readonly AudioPlayer _audioPlayer;
+    private HashSet<(int X, int Y)> _reachableNodes = new();
 
     public event Action<int>? OnScore;
     public event Action? OnPowerUpCollected;
@@ -38,35 +45,48 @@ public class Dots
 
         SmallDots.Clear();
         BigDots.Clear();
+        _reachableNodes.Clear();
     }
 
-    public void CreateDots(Canvas canvas, List<Rect> walls)
+    public void CreateDots(Canvas canvas, List<Rect> walls, double spawnX, double spawnY)
     {
-        const double spacing = 30;
-        const double dotSize = 6;
+        var candidates = new HashSet<(int X, int Y)>();
 
-        for (double y = 30; y < 570; y += spacing)
+        for (var y = GridStart; y < GridEnd; y += GridSpacing)
         {
-            for (double x = 30; x < 570; x += spacing)
+            for (var x = GridStart; x < GridEnd; x += GridSpacing)
             {
-                var dotRect = new Rect(x, y, dotSize, dotSize);
+                var dotRect = new Rect(x, y, DotSize, DotSize);
                 if (walls.Exists(wall => wall.Intersects(dotRect)))
                 {
                     continue;
                 }
 
-                var dot = new Ellipse
-                {
-                    Width = dotSize,
-                    Height = dotSize,
-                    Fill = new SolidColorBrush(Color.Parse("#FFF3B0"))
-                };
-
-                Canvas.SetLeft(dot, x);
-                Canvas.SetTop(dot, y);
-                canvas.Children.Add(dot);
-                SmallDots.Add(dot);
+                candidates.Add((x, y));
             }
+        }
+
+        if (candidates.Count == 0)
+        {
+            return;
+        }
+
+        var start = FindClosestNode(candidates, spawnX, spawnY);
+        _reachableNodes = CalculateReachableNodes(candidates, start, GridSpacing);
+
+        foreach (var (x, y) in _reachableNodes.OrderBy(node => node.Y).ThenBy(node => node.X))
+        {
+            var dot = new Ellipse
+            {
+                Width = DotSize,
+                Height = DotSize,
+                Fill = new SolidColorBrush(Color.Parse("#FFF3B0"))
+            };
+
+            Canvas.SetLeft(dot, x);
+            Canvas.SetTop(dot, y);
+            canvas.Children.Add(dot);
+            SmallDots.Add(dot);
         }
     }
 
@@ -81,6 +101,11 @@ public class Dots
 
         foreach (var (x, y) in positions)
         {
+            if (!IsReachableForPacman(x, y))
+            {
+                continue;
+            }
+
             var powerUp = new Ellipse
             {
                 Width = 18,
@@ -141,5 +166,59 @@ public class Dots
         {
             OnBoardCleared?.Invoke();
         }
+    }
+
+    private bool IsReachableForPacman(double x, double y)
+    {
+        if (_reachableNodes.Count == 0)
+        {
+            return true;
+        }
+
+        var nearest = _reachableNodes
+            .OrderBy(node => Math.Abs(node.X - x) + Math.Abs(node.Y - y))
+            .First();
+
+        return Math.Abs(nearest.X - x) <= GridSpacing && Math.Abs(nearest.Y - y) <= GridSpacing;
+    }
+
+    private static (int X, int Y) FindClosestNode(HashSet<(int X, int Y)> nodes, double x, double y)
+    {
+        return nodes.OrderBy(node => Math.Abs(node.X - x) + Math.Abs(node.Y - y)).First();
+    }
+
+    private static HashSet<(int X, int Y)> CalculateReachableNodes(HashSet<(int X, int Y)> candidates, (int X, int Y) start, int spacing)
+    {
+        var reachable = new HashSet<(int X, int Y)>();
+        var queue = new Queue<(int X, int Y)>();
+
+        queue.Enqueue(start);
+        reachable.Add(start);
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+
+            foreach (var next in GetNeighbors(current, spacing))
+            {
+                if (!candidates.Contains(next) || reachable.Contains(next))
+                {
+                    continue;
+                }
+
+                reachable.Add(next);
+                queue.Enqueue(next);
+            }
+        }
+
+        return reachable;
+    }
+
+    private static IEnumerable<(int X, int Y)> GetNeighbors((int X, int Y) node, int spacing)
+    {
+        yield return (node.X + spacing, node.Y);
+        yield return (node.X - spacing, node.Y);
+        yield return (node.X, node.Y + spacing);
+        yield return (node.X, node.Y - spacing);
     }
 }
