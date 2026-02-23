@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "bX0IC28K3BM=",
+  "dgSpecHash": "TXobFNGJ8jc=",
   "success": true,
-  "projectFilePath": "C:\\Users\\papie\\Downloads\\pacmangame\\pacmangame\\PACMAN\\PACMAN.csproj",
+  "projectFilePath": "c:\\Users\\papie\\Downloads\\pacmangame\\pacmangame\\PACMAN\\PACMAN.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\papie\\.nuget\\packages\\avalonia\\11.3.2\\avalonia.11.3.2.nupkg.sha512",
     "C:\\Users\\papie\\.nuget\\packages\\avalonia.angle.windows.natives\\2.1.25547.20250602\\avalonia.angle.windows.natives.2.1.25547.20250602.nupkg.sha512",
@@ -88,10 +88,10 @@
     "C:\\Users\\papie\\.nuget\\packages\\system.threading.tasks\\4.3.0\\system.threading.tasks.4.3.0.nupkg.sha512",
     "C:\\Users\\papie\\.nuget\\packages\\tmds.dbus.protocol\\0.21.2\\tmds.dbus.protocol.0.21.2.nupkg.sha512",
     "C:\\Users\\papie\\.nuget\\packages\\videolan.libvlc.windows\\3.0.23\\videolan.libvlc.windows.3.0.23.nupkg.sha512",
-    "C:\\Users\\papie\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.22\\microsoft.aspnetcore.app.ref.8.0.22.nupkg.sha512",
-    "C:\\Users\\papie\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\8.0.22\\microsoft.netcore.app.host.win-x64.8.0.22.nupkg.sha512",
     "C:\\Users\\papie\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.22\\microsoft.netcore.app.ref.8.0.22.nupkg.sha512",
-    "C:\\Users\\papie\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.22\\microsoft.windowsdesktop.app.ref.8.0.22.nupkg.sha512"
+    "C:\\Users\\papie\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.22\\microsoft.windowsdesktop.app.ref.8.0.22.nupkg.sha512",
+    "C:\\Users\\papie\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.22\\microsoft.aspnetcore.app.ref.8.0.22.nupkg.sha512",
+    "C:\\Users\\papie\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\8.0.22\\microsoft.netcore.app.host.win-x64.8.0.22.nupkg.sha512"
   ],
   "logs": []
 }
