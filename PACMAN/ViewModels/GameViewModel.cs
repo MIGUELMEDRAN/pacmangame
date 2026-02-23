@@ -14,13 +14,15 @@ using System.Linq;
 
 namespace PACMAN.ViewModels;
 
-public class GameViewModel
+public class GameViewModel : IDisposable
 {
     private const double BoardSize = 600;
     private const double BorderThickness = 20;
     private const double CellSize = 10;
     private const double CollisionInset = 2;
-    private const double LaneSnapTolerance = 4;
+    private const double LaneSnapTolerance = 6;
+    private const double PacmanStep = 10;
+    private const double GhostStep = 10;
 
     private readonly GameView _view;
     private readonly Canvas _canvas;
@@ -41,6 +43,7 @@ public class GameViewModel
     private bool _isPowerMode;
     private bool _bossSpawned;
     private bool _isGameFinished;
+    private bool _disposed;
 
     private Direction _currentDirection = Direction.None;
     private Direction _desiredDirection = Direction.None;
@@ -65,7 +68,7 @@ public class GameViewModel
         _animationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
         _animationTimer.Tick += (_, _) => Pacman.ToggleMouth();
 
-        _movementTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+        _movementTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(40) };
         _movementTimer.Tick += (_, _) => UpdatePacman();
 
         _ghostTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
@@ -79,6 +82,11 @@ public class GameViewModel
 
     public void RetryGame()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         _isGameFinished = false;
         _score = 0;
         _lives = 3;
@@ -99,7 +107,7 @@ public class GameViewModel
 
     public void OnKeyDown(KeyEventArgs e)
     {
-        if (_isGameFinished)
+        if (_isGameFinished || _disposed)
         {
             return;
         }
@@ -111,6 +119,12 @@ public class GameViewModel
         }
 
         _desiredDirection = direction;
+
+        if (_currentDirection == Direction.None)
+        {
+            _currentDirection = direction;
+            Pacman.Rotate(DirectionAngle(_currentDirection));
+        }
     }
 
     private static Direction GetDirection(Key key)
@@ -127,7 +141,7 @@ public class GameViewModel
 
     private void UpdatePacman()
     {
-        if (_isGameFinished)
+        if (_isGameFinished || _disposed)
         {
             return;
         }
@@ -267,11 +281,12 @@ public class GameViewModel
         BuildGhosts(config);
 
         _view.UpdateTheme(config.CanvasColor);
-        _view.UpdateLevelDisplay(level, config.ThemeName);
+        _view.UpdateLevelDisplay(level);
     }
 
     private void ResetPacmanPosition()
     {
+        Pacman.MoveStep = PacmanStep;
         Pacman.Move(40, 140);
         _currentDirection = Direction.None;
         _desiredDirection = Direction.None;
@@ -322,7 +337,7 @@ public class GameViewModel
     private void BuildDots()
     {
         Dots.Reset(_canvas);
-        Dots.CreateDots(_canvas, _walls);
+        Dots.CreateDots(_canvas, _walls, 40, 140);
         Dots.CreatePowerUps(_canvas, _level);
     }
 
@@ -346,7 +361,7 @@ public class GameViewModel
             {
                 Width = image.Width,
                 Height = image.Height,
-                Speed = CellSize
+                Speed = GhostStep
             };
 
             ghost.PositionChanged += (x, y) =>
@@ -356,7 +371,7 @@ public class GameViewModel
             };
 
             ghost.Move(spawn.X, spawn.Y);
-            _ghostStates.Add(new GhostState(ghost, image));
+            _ghostStates.Add(new GhostState(ghost, image, spawn.X, spawn.Y));
         }
 
         _view.BossImage.IsVisible = false;
@@ -365,7 +380,7 @@ public class GameViewModel
 
     private void MoveGhosts()
     {
-        if (_isGameFinished)
+        if (_isGameFinished || _disposed)
         {
             return;
         }
@@ -452,32 +467,41 @@ public class GameViewModel
 
     private void CheckGhostCollision()
     {
-        var pacmanBounds = Pacman.GetBounds();
+        var pacmanBounds = DeflateRect(Pacman.GetBounds(), 5);
 
         foreach (var state in _ghostStates.Where(s => s.Ghost.IsActive).ToList())
         {
-            if (!state.Ghost.GetBounds().Intersects(pacmanBounds))
+            var ghostBounds = DeflateRect(state.Ghost.GetBounds(), 5);
+            if (!ghostBounds.Intersects(pacmanBounds))
             {
                 continue;
             }
 
             if (state.Ghost.IsVulnerable)
             {
-                state.Ghost.IsActive = false;
-                state.Image.IsVisible = false;
                 AddScore(200);
 
-                if (_level == 3 && !_bossSpawned && _ghostStates.Where(s => !s.Ghost.IsBoss).All(s => !s.Ghost.IsActive))
+                if (_level == 3 && !state.Ghost.IsBoss && !_bossSpawned)
                 {
                     SpawnBoss();
                 }
 
+                RespawnGhost(state);
                 continue;
             }
 
             HandlePacmanHit();
             return;
         }
+    }
+
+    private void RespawnGhost(GhostState state)
+    {
+        state.Ghost.IsActive = true;
+        state.Ghost.IsVulnerable = false;
+        state.Image.IsVisible = true;
+        state.Image.Opacity = 1;
+        state.Ghost.Move(state.SpawnX, state.SpawnY);
     }
 
     private void HandlePacmanHit()
@@ -505,7 +529,7 @@ public class GameViewModel
         {
             Width = bossImage.Width,
             Height = bossImage.Height,
-            Speed = CellSize,
+            Speed = GhostStep,
             IsBoss = true
         };
 
@@ -516,7 +540,7 @@ public class GameViewModel
         };
 
         ghost.Move(280, 280);
-        _ghostStates.Add(new GhostState(ghost, bossImage));
+        _ghostStates.Add(new GhostState(ghost, bossImage, 280, 280));
     }
 
     private void ActivatePowerMode()
@@ -528,7 +552,7 @@ public class GameViewModel
         foreach (var state in _ghostStates.Where(s => s.Ghost.IsActive && !s.Ghost.IsBoss))
         {
             state.Ghost.IsVulnerable = true;
-            state.Image.Opacity = 0.45;
+            state.Image.Opacity = 0.65;
         }
     }
 
@@ -579,6 +603,25 @@ public class GameViewModel
         _view.ShowGameOver();
     }
 
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        _animationTimer.Stop();
+        _movementTimer.Stop();
+        _ghostTimer.Stop();
+        _powerModeTimer.Stop();
+
+        Dots.OnScore -= AddScore;
+        Dots.OnPowerUpCollected -= ActivatePowerMode;
+        Dots.OnBoardCleared -= AdvanceLevel;
+    }
+
     private bool IsSpaceFree(double x, double y, double width, double height)
     {
         if (x < BorderThickness || y < BorderThickness)
@@ -598,6 +641,13 @@ public class GameViewModel
             Math.Max(1, height - (CollisionInset * 2)));
 
         return !_walls.Any(w => w.Intersects(safeBounds));
+    }
+
+    private static Rect DeflateRect(Rect rect, double inset)
+    {
+        var width = Math.Max(1, rect.Width - (inset * 2));
+        var height = Math.Max(1, rect.Height - (inset * 2));
+        return new Rect(rect.X + inset, rect.Y + inset, width, height);
     }
 
     private static bool IsPerpendicular(Direction a, Direction b)
@@ -665,7 +715,7 @@ public class GameViewModel
                 "Aurora",
                 Color.Parse("#0D1B2A"),
                 Color.Parse("#3A86FF"),
-                2,
+                3,
                 new[] { (300d, 300d), (260d, 300d), (320d, 260d), (240d, 260d) },
                 new (double x, double y, double w, double h)[]
                 {
@@ -690,7 +740,7 @@ public class GameViewModel
                 "Crimson Forge",
                 Color.Parse("#2B0A0A"),
                 Color.Parse("#FF7F11"),
-                4,
+                3,
                 new[] { (300d, 300d), (260d, 300d), (340d, 300d), (300d, 260d) },
                 new (double x, double y, double w, double h)[]
                 {
@@ -702,7 +752,7 @@ public class GameViewModel
         };
     }
 
-    private sealed record GhostState(Ghost Ghost, Image Image);
+    private sealed record GhostState(Ghost Ghost, Image Image, double SpawnX, double SpawnY);
 
     private sealed record LevelConfig(
         string ThemeName,
