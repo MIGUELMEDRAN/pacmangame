@@ -4,246 +4,515 @@ using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
+using PACMAN.Audio;
 using PACMAN.Models;
 using PACMAN.Services;
 using PACMAN.Views;
-using PACMAN.Audio;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PACMAN.ViewModels;
 
-/// <summary>
-/// ViewModel principal que gestiona la logica del juego.
-/// </summary>
 public class GameViewModel
 {
-    /// <summary>
-    /// Obtiene la instancia actual del juagdor.
-    /// </summary>
-    public Pacman Pacman { get; private set; }
-    
-    /// <summary>
-    /// Obtiene la coleccion de puntos.
-    /// </summary>
-    public Dots Dots { get; private set; }
-    
-    /// <summary>
-    /// Obtiene la lista de muros.
-    /// </summary>
-    public List<Rect> Walls { get; private set; } = new();
-    
-    /// <summary>
-    /// Obtiene la lista de fantasmas.
-    /// </summary>
-    public List<Ghost> Ghosts { get; private set; } = new();
-    
-    private DispatcherTimer _animationTimer;
-    private DispatcherTimer _ghostTimer;
+    private const double BoardSize = 600;
+    private const double BorderThickness = 20;
+    private const double CellSize = 10;
 
-    private GameView _gameView;
+    private readonly GameView _view;
+    private readonly Canvas _canvas;
+    private readonly AudioPlayer _audio;
+    private readonly DispatcherTimer _animationTimer;
+    private readonly DispatcherTimer _ghostTimer;
+    private readonly DispatcherTimer _powerModeTimer;
+
+    private readonly List<Rect> _walls = new();
+    private readonly List<Rectangle> _wallShapes = new();
+    private readonly List<GhostState> _ghostStates = new();
+    private readonly Dictionary<int, LevelConfig> _levels;
+
     private int _score;
-    private Random _rand = new();
-    
-    private readonly AudioPlayer _audioPlayer;
+    private int _level = 1;
+    private bool _isPowerMode;
+    private bool _bossSpawned;
+    private bool _isGameFinished;
 
-    /// <summary>
-    /// Inicializa una nueva instancia de la clase <see cref="GameViewModel"/>.
-    /// </summary>
-    /// <param name="gameView">Vista del juego.</param>
-    /// <param name="open">Imagen de pacman con la boca abierta.</param>
-    /// <param name="closed">IMagen de pacman con la boca cerrada.</param>
-    /// <param name="canvas">Lienzo principal del juego.</param>
-    /// <param name="audioPlayer">Reproductor de sonidos.</param>
-    /// <exception cref="ArgumentNullException">Se lanza si alguno de los parametros requeridos es nulo.</exception>
-    public GameViewModel(GameView gameView, Image open, Image closed, Canvas canvas, AudioPlayer audioPlayer)
+    public Pacman Pacman { get; }
+    public Dots Dots { get; }
+
+    public GameViewModel(GameView view, Image open, Image closed, Canvas canvas, AudioPlayer audio)
     {
-        _gameView = gameView ?? throw new ArgumentNullException(nameof(gameView));
-        _audioPlayer = audioPlayer ?? throw new ArgumentNullException(nameof(audioPlayer));
-        
+        _view = view;
+        _canvas = canvas;
+        _audio = audio;
+
         Pacman = new Pacman(open, closed);
-        Dots = new Dots(_audioPlayer);
+        Dots = new Dots(audio);
+        _levels = BuildLevelConfigs();
 
-        Dots.OnScore += HandleScoreUpdate;
+        Dots.OnScore += AddScore;
+        Dots.OnPowerUpCollected += ActivatePowerMode;
+        Dots.OnBoardCleared += AdvanceLevel;
 
-        CreateMaze(canvas);
-        Dots.CreateDots(canvas, Walls);
-        Dots.CreatePowerUps(canvas);
-
-        _animationTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(300)
-        };
+        _animationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(160) };
         _animationTimer.Tick += (_, _) => Pacman.ToggleMouth();
-        _animationTimer.Start();
-        
-        CreateGhost(gameView.RedGhost, 300, 300);
-        CreateGhost(gameView.BlueGhost, 200, 200);
 
-        _ghostTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(250)
-        };
+        _ghostTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
         _ghostTimer.Tick += (_, _) => MoveGhosts();
+
+        _powerModeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(7) };
+        _powerModeTimer.Tick += (_, _) => DisablePowerMode();
+
+        RetryGame();
+    }
+
+    public void RetryGame()
+    {
+        _isGameFinished = false;
+        _score = 0;
+        _view.HideStatusOverlay();
+        _view.UpdateScoreDisplay(_score);
+        ScoreService.UpdateScore(_score);
+
+        LoadLevel(1);
+
+        _animationTimer.Start();
         _ghostTimer.Start();
-        
-        ScoreService.UpdateScore(0);
-        _gameView.UpdateScoreDisplay(0);
     }
 
-    private void CreateGhost(Image image, double x, double y)
+    public void OnKeyDown(KeyEventArgs e)
     {
-        var ghost = new Ghost(x, y);
-        ghost.PositionChanged += (newX, newY) =>
-        {
-            Canvas.SetLeft(image, newX);
-            Canvas.SetTop(image, newY);
-        };
-        ghost.Move(x, y);
-        Ghosts.Add(ghost);
-    }
-
-    /// <summary>
-    /// Maneja el evento de presionar una tecla para mover a pacman.
-    /// </summary>
-    /// <param name="e">Datos del evento de tecla presionada.</param>
-    /// <param name="canvas">Lienzo del juego.</param>
-    public void OnKeyDown(KeyEventArgs e, Canvas canvas)
-    {
-        double newX = Pacman.X, newY = Pacman.Y;
-        double angle = 0;
-        var playerWidth = Pacman.OpenImage.Bounds.Width;
-        var playerHeight = Pacman.OpenImage.Bounds.Height;
-
-        switch (e.Key)
-        {
-            case Key.Up:
-            case Key.W:    
-                newY -= Pacman.MoveStep;
-                angle = 270;
-                break;
-            case Key.Down:
-            case Key.S:    
-                newY += Pacman.MoveStep;
-                angle = 90;
-                break;
-            case Key.Left:
-            case Key.A:    
-                newX -= Pacman.MoveStep;
-                angle = 180;
-                break;
-            case Key.Right:
-            case Key.D:    
-                newX += Pacman.MoveStep;
-                angle = 0;
-                break;
-            default:
-                return;
-        }
-        
-        var futureBounds = new Rect(newX, newY, playerWidth, playerHeight);
-        bool collides = Walls.Exists(w => w.Intersects(futureBounds));
-        if (collides)
+        if (_isGameFinished)
         {
             return;
         }
-        
-        Pacman.Move(newX, newY);
-        Pacman.Rotate(angle);
-        Dots.CheckDotCollision(canvas, Pacman.GetBounds());
+
+        var movement = GetMovement(e.Key);
+        if (movement == default)
+        {
+            return;
+        }
+
+        Pacman.Rotate(movement.Angle);
+
+        var targetX = Pacman.X + movement.Dx;
+        var targetY = Pacman.Y + movement.Dy;
+
+        var clampedX = Clamp(targetX, BorderThickness, BoardSize - BorderThickness - Pacman.Width);
+        var clampedY = Clamp(targetY, BorderThickness, BoardSize - BorderThickness - Pacman.Height);
+
+        var canMoveX = IsSpaceFree(clampedX, Pacman.Y, Pacman.Width, Pacman.Height);
+        var canMoveY = IsSpaceFree(Pacman.X, clampedY, Pacman.Width, Pacman.Height);
+
+        var finalX = canMoveX ? clampedX : Pacman.X;
+        var finalY = canMoveY ? clampedY : Pacman.Y;
+
+        if (!IsSpaceFree(finalX, finalY, Pacman.Width, Pacman.Height))
+        {
+            return;
+        }
+
+        Pacman.Move(finalX, finalY);
+        Dots.CheckDotCollision(_canvas, Pacman.GetBounds());
         CheckGhostCollision();
+    }
+
+    private static (double Dx, double Dy, double Angle) GetMovement(Key key)
+    {
+        return key switch
+        {
+            Key.Up or Key.W => (0, -CellSize, 270),
+            Key.Down or Key.S => (0, CellSize, 90),
+            Key.Left or Key.A => (-CellSize, 180),
+            Key.Right or Key.D => (CellSize, 0, 0),
+            _ => default
+        };
+    }
+
+    private void LoadLevel(int level)
+    {
+        _level = level;
+        _isPowerMode = false;
+        _bossSpawned = false;
+        _powerModeTimer.Stop();
+
+        var config = _levels[level];
+
+        Pacman.Move(40, 140);
+        Pacman.Rotate(0);
+
+        BuildMaze(config);
+        BuildDots();
+        BuildGhosts(config);
+
+        _view.UpdateTheme(config.CanvasColor);
+        _view.UpdateLevelDisplay(level, config.ThemeName);
+    }
+
+    private void BuildMaze(LevelConfig config)
+    {
+        foreach (var shape in _wallShapes)
+        {
+            _canvas.Children.Remove(shape);
+        }
+
+        _wallShapes.Clear();
+        _walls.Clear();
+
+        foreach (var (x, y, w, h) in config.Walls)
+        {
+            var wall = new Rectangle
+            {
+                Width = w,
+                Height = h,
+                Fill = new SolidColorBrush(config.WallColor),
+                RadiusX = 4,
+                RadiusY = 4
+            };
+
+            Canvas.SetLeft(wall, x);
+            Canvas.SetTop(wall, y);
+            _canvas.Children.Add(wall);
+            _wallShapes.Add(wall);
+            _walls.Add(new Rect(x, y, w, h));
+        }
+    }
+
+    private void BuildDots()
+    {
+        Dots.Reset(_canvas);
+        Dots.CreateDots(_canvas, _walls);
+        Dots.CreatePowerUps(_canvas, _level);
+    }
+
+    private void BuildGhosts(LevelConfig config)
+    {
+        _ghostStates.Clear();
+
+        var images = _view.GhostImages;
+        for (var i = 0; i < images.Length; i++)
+        {
+            var image = images[i];
+            image.IsVisible = i < config.GhostCount;
+            image.Opacity = 1;
+
+            if (!image.IsVisible)
+            {
+                continue;
+            }
+
+            var spawn = config.Spawns[i];
+            var ghost = new Ghost(spawn.X, spawn.Y)
+            {
+                Speed = CellSize,
+                Width = image.Width,
+                Height = image.Height
+            };
+
+            ghost.PositionChanged += (x, y) =>
+            {
+                Canvas.SetLeft(image, x);
+                Canvas.SetTop(image, y);
+            };
+
+            ghost.Move(spawn.X, spawn.Y);
+            _ghostStates.Add(new GhostState(ghost, image));
+        }
+
+        _view.BossImage.IsVisible = false;
+        _view.BossImage.Opacity = 1;
     }
 
     private void MoveGhosts()
     {
-        foreach (var ghost in Ghosts)
+        if (_isGameFinished)
         {
-            var dir = GetDirectionToPacman(ghost);
-            var newX = ghost.X + dir.X + ghost.Speed;
-            var newY = ghost.Y + dir.Y + ghost.Speed;
-            
-            var bounds = new Rect(newX, newY, ghost.Width, ghost.Height);
-            if (!Walls.Exists(w => w.Intersects(bounds)))
+            return;
+        }
+
+        foreach (var state in _ghostStates.Where(s => s.Ghost.IsActive).ToList())
+        {
+            MoveGhost(state);
+        }
+
+        CheckGhostCollision();
+    }
+
+    private void MoveGhost(GhostState state)
+    {
+        var current = Quantize(state.Ghost.X, state.Ghost.Y);
+        var target = Quantize(Pacman.X, Pacman.Y);
+
+        var candidates = NextCells(current)
+            .Where(next => IsSpaceFree(next.X, next.Y, state.Ghost.Width, state.Ghost.Height))
+            .ToList();
+
+        if (candidates.Count == 0)
+        {
+            return;
+        }
+
+        var step = _isPowerMode && !state.Ghost.IsBoss
+            ? candidates.OrderByDescending(n => ManhattanDistance(n, target)).First()
+            : FindStepTowardTarget(current, target, candidates, state.Ghost.Width, state.Ghost.Height);
+
+        state.Ghost.Move(step.X, step.Y);
+    }
+
+    private (int X, int Y) FindStepTowardTarget((int X, int Y) current, (int X, int Y) target, List<(int X, int Y)> initialCandidates, double width, double height)
+    {
+        var queue = new Queue<(int X, int Y)>();
+        var visited = new HashSet<(int X, int Y)> { current };
+        var parent = new Dictionary<(int X, int Y), (int X, int Y)>();
+
+        queue.Enqueue(current);
+
+        while (queue.Count > 0)
+        {
+            var node = queue.Dequeue();
+            if (node == target)
             {
-                ghost.Move(newX, newY);
-                CheckGhostCollision();
+                break;
             }
+
+            foreach (var next in NextCells(node))
+            {
+                if (visited.Contains(next))
+                {
+                    continue;
+                }
+
+                if (!IsSpaceFree(next.X, next.Y, width, height))
+                {
+                    continue;
+                }
+
+                visited.Add(next);
+                parent[next] = node;
+                queue.Enqueue(next);
+            }
+        }
+
+        if (!visited.Contains(target))
+        {
+            return initialCandidates.OrderBy(n => ManhattanDistance(n, target)).First();
+        }
+
+        var pathNode = target;
+        while (parent.TryGetValue(pathNode, out var prev) && prev != current)
+        {
+            pathNode = prev;
+        }
+
+        return initialCandidates.Contains(pathNode)
+            ? pathNode
+            : initialCandidates.OrderBy(n => ManhattanDistance(n, target)).First();
+    }
+
+    private static IEnumerable<(int X, int Y)> NextCells((int X, int Y) node)
+    {
+        yield return (node.X + (int)CellSize, node.Y);
+        yield return (node.X - (int)CellSize, node.Y);
+        yield return (node.X, node.Y + (int)CellSize);
+        yield return (node.X, node.Y - (int)CellSize);
+    }
+
+    private void ActivatePowerMode()
+    {
+        _isPowerMode = true;
+        _powerModeTimer.Stop();
+        _powerModeTimer.Start();
+
+        foreach (var state in _ghostStates.Where(s => s.Ghost.IsActive && !s.Ghost.IsBoss))
+        {
+            state.Ghost.IsVulnerable = true;
+            state.Image.Opacity = 0.45;
         }
     }
 
-    private (int X, int Y) GetDirectionToPacman(Ghost ghost)
+    private void DisablePowerMode()
     {
-        int dx = 0, dy = 0;
-        
-        if (Pacman.X < ghost.X) dx = -1;
-        else if (Pacman.X > ghost.X) dx = 1;
-        
-        if (Pacman.Y < ghost.Y) dy = -1;
-        else if (Pacman.Y > ghost.Y) dy = 1;
+        _isPowerMode = false;
+        _powerModeTimer.Stop();
 
-        if (_rand.Next(0, 5) == 0)
+        foreach (var state in _ghostStates.Where(s => s.Ghost.IsActive))
         {
-            dx = _rand.Next(-1, 2);
-            dy = _rand.Next(-1, 2);
+            state.Ghost.IsVulnerable = false;
+            state.Image.Opacity = 1;
         }
-
-        return (dx, dy);
     }
 
     private void CheckGhostCollision()
     {
         var pacmanBounds = Pacman.GetBounds();
-        foreach (var ghost in Ghosts)
+
+        foreach (var state in _ghostStates.Where(s => s.Ghost.IsActive).ToList())
         {
-            if (ghost.GetBounds().Intersects(pacmanBounds))
+            if (!state.Ghost.GetBounds().Intersects(pacmanBounds))
             {
-                GameOver();
-                break;
+                continue;
             }
+
+            if (state.Ghost.IsVulnerable)
+            {
+                state.Ghost.IsActive = false;
+                state.Image.IsVisible = false;
+                AddScore(200);
+
+                if (_level == 3 && !_bossSpawned && _ghostStates.Where(s => !s.Ghost.IsBoss).All(s => !s.Ghost.IsActive))
+                {
+                    SpawnBoss();
+                }
+
+                continue;
+            }
+
+            EndGame();
+            return;
         }
     }
 
-    private void GameOver()
+    private void SpawnBoss()
     {
-        _animationTimer.Stop();
-        _ghostTimer.Stop();
-        _audioPlayer.Dead();
-        _gameView.ShowGameOver();
-    }
+        _bossSpawned = true;
+        var bossImage = _view.BossImage;
+        bossImage.IsVisible = true;
 
-    private void CreateMaze(Canvas canvas)
-    {
-        var wallColor = Brushes.Blue;
-        var wallSpecs = new (double x, double y, double w, double h)[]
+        var ghost = new Ghost(280, 280)
         {
-            (0, 0, 600, 20), (0, 580, 600, 20),
-            (0, 0, 20, 600), (580, 0, 20, 600),
-            (100, 100, 100, 20), (200, 100, 20, 100),
-            (250, 200, 150, 20), (400, 100, 20, 150),
-            (300, 1, 20, 150), (150, 300, 100, 20),
-            (350, 300, 100, 20), (100, 400, 20, 100),
-            (480, 400, 20, 100)
+            Width = 55,
+            Height = 55,
+            Speed = CellSize,
+            IsBoss = true
         };
 
-        foreach (var (x, y, w, h) in wallSpecs)
+        ghost.PositionChanged += (x, y) =>
         {
-            var rect = new Rectangle
-            {
-                Width = w,
-                Height = h,
-                Fill = wallColor
-            };
-            Canvas.SetLeft(rect, x);
-            Canvas.SetTop(rect, y);
-            canvas.Children.Add(rect);
-            Walls.Add(new Rect(x, y, w, h));
-        }
+            Canvas.SetLeft(bossImage, x);
+            Canvas.SetTop(bossImage, y);
+        };
+
+        ghost.Move(280, 280);
+        _ghostStates.Add(new GhostState(ghost, bossImage));
     }
 
-    private void HandleScoreUpdate(int points)
+    private void AddScore(int points)
     {
         _score += points;
-        _gameView.UpdateScoreDisplay(_score);
+        _view.UpdateScoreDisplay(_score);
         ScoreService.UpdateScore(_score);
     }
+
+    private void AdvanceLevel()
+    {
+        if (_level >= 3)
+        {
+            _isGameFinished = true;
+            _animationTimer.Stop();
+            _ghostTimer.Stop();
+            _powerModeTimer.Stop();
+            _view.ShowWinMessage();
+            return;
+        }
+
+        _audio.LevelUp();
+        LoadLevel(_level + 1);
+    }
+
+    private void EndGame()
+    {
+        _isGameFinished = true;
+        _animationTimer.Stop();
+        _ghostTimer.Stop();
+        _powerModeTimer.Stop();
+        _audio.Dead();
+        _view.ShowGameOver();
+    }
+
+    private bool IsSpaceFree(double x, double y, double width, double height)
+    {
+        if (x < BorderThickness || y < BorderThickness)
+        {
+            return false;
+        }
+
+        if (x + width > BoardSize - BorderThickness || y + height > BoardSize - BorderThickness)
+        {
+            return false;
+        }
+
+        var bounds = new Rect(x, y, width, height);
+        return !_walls.Any(w => w.Intersects(bounds));
+    }
+
+    private static int ManhattanDistance((int X, int Y) a, (int X, int Y) b)
+    {
+        return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
+    }
+
+    private static (int X, int Y) Quantize(double x, double y)
+    {
+        return ((int)Math.Round(x / CellSize) * (int)CellSize, (int)Math.Round(y / CellSize) * (int)CellSize);
+    }
+
+    private static double Clamp(double value, double min, double max)
+    {
+        return Math.Max(min, Math.Min(max, value));
+    }
+
+    private static Dictionary<int, LevelConfig> BuildLevelConfigs()
+    {
+        return new Dictionary<int, LevelConfig>
+        {
+            [1] = new LevelConfig(
+                "Aurora",
+                Color.Parse("#0B1020"),
+                Color.Parse("#2563EB"),
+                2,
+                new[] { (300d, 300d), (260d, 300d), (320d, 260d), (240d, 260d) },
+                new (double x, double y, double w, double h)[]
+                {
+                    (0, 0, 600, 20), (0, 580, 600, 20), (0, 0, 20, 600), (580, 0, 20, 600),
+                    (80, 80, 140, 20), (80, 80, 20, 140), (220, 160, 160, 20), (380, 80, 20, 180),
+                    (120, 260, 180, 20), (300, 360, 180, 20), (180, 460, 240, 20), (500, 220, 20, 180)
+                }),
+            [2] = new LevelConfig(
+                "Cobalt Lab",
+                Color.Parse("#111827"),
+                Color.Parse("#14B8A6"),
+                3,
+                new[] { (300d, 300d), (240d, 300d), (360d, 300d), (300d, 240d) },
+                new (double x, double y, double w, double h)[]
+                {
+                    (0, 0, 600, 20), (0, 580, 600, 20), (0, 0, 20, 600), (580, 0, 20, 600),
+                    (70, 70, 20, 220), (70, 70, 180, 20), (350, 70, 180, 20), (510, 70, 20, 220),
+                    (170, 200, 260, 20), (170, 200, 20, 170), (410, 200, 20, 170), (120, 430, 360, 20),
+                    (280, 290, 40, 140)
+                }),
+            [3] = new LevelConfig(
+                "Crimson Forge",
+                Color.Parse("#2B0A0A"),
+                Color.Parse("#F97316"),
+                4,
+                new[] { (300d, 300d), (260d, 300d), (340d, 300d), (300d, 260d) },
+                new (double x, double y, double w, double h)[]
+                {
+                    (0, 0, 600, 20), (0, 580, 600, 20), (0, 0, 20, 600), (580, 0, 20, 600),
+                    (90, 70, 420, 20), (90, 70, 20, 170), (490, 70, 20, 170), (170, 170, 260, 20),
+                    (170, 170, 20, 180), (410, 170, 20, 180), (110, 390, 380, 20), (110, 390, 20, 130),
+                    (470, 390, 20, 130), (200, 510, 200, 20)
+                })
+        };
+    }
+
+    private sealed record GhostState(Ghost Ghost, Image Image);
+
+    private sealed record LevelConfig(
+        string ThemeName,
+        Color CanvasColor,
+        Color WallColor,
+        int GhostCount,
+        (double X, double Y)[] Spawns,
+        (double x, double y, double w, double h)[] Walls);
 }
