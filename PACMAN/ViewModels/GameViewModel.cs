@@ -19,12 +19,14 @@ public class GameViewModel
     private const double BoardSize = 600;
     private const double BorderThickness = 20;
     private const double CellSize = 10;
-    private const double CollisionInset = 1.25;
+    private const double CollisionInset = 2;
+    private const double LaneSnapTolerance = 4;
 
     private readonly GameView _view;
     private readonly Canvas _canvas;
     private readonly AudioPlayer _audio;
     private readonly DispatcherTimer _animationTimer;
+    private readonly DispatcherTimer _movementTimer;
     private readonly DispatcherTimer _ghostTimer;
     private readonly DispatcherTimer _powerModeTimer;
 
@@ -35,9 +37,13 @@ public class GameViewModel
 
     private int _score;
     private int _level;
+    private int _lives;
     private bool _isPowerMode;
     private bool _bossSpawned;
     private bool _isGameFinished;
+
+    private Direction _currentDirection = Direction.None;
+    private Direction _desiredDirection = Direction.None;
 
     public Pacman Pacman { get; }
     public Dots Dots { get; }
@@ -56,8 +62,11 @@ public class GameViewModel
         Dots.OnPowerUpCollected += ActivatePowerMode;
         Dots.OnBoardCleared += AdvanceLevel;
 
-        _animationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(155) };
+        _animationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
         _animationTimer.Tick += (_, _) => Pacman.ToggleMouth();
+
+        _movementTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+        _movementTimer.Tick += (_, _) => UpdatePacman();
 
         _ghostTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
         _ghostTimer.Tick += (_, _) => MoveGhosts();
@@ -72,13 +81,19 @@ public class GameViewModel
     {
         _isGameFinished = false;
         _score = 0;
+        _lives = 3;
+        _currentDirection = Direction.None;
+        _desiredDirection = Direction.None;
+
         _view.HideStatusOverlay();
         _view.UpdateScoreDisplay(_score);
+        _view.UpdateLivesDisplay(_lives);
         ScoreService.UpdateScore(_score);
 
         LoadLevel(1);
 
         _animationTimer.Start();
+        _movementTimer.Start();
         _ghostTimer.Start();
     }
 
@@ -89,50 +104,152 @@ public class GameViewModel
             return;
         }
 
-        var movement = GetMovement(e.Key);
-        if (movement == default)
+        var direction = GetDirection(e.Key);
+        if (direction == Direction.None)
         {
             return;
         }
 
-        Pacman.Rotate(movement.Angle);
+        _desiredDirection = direction;
+    }
 
-        var targetX = Clamp(Pacman.X + movement.Dx, BorderThickness, BoardSize - BorderThickness - Pacman.Width);
-        var targetY = Clamp(Pacman.Y + movement.Dy, BorderThickness, BoardSize - BorderThickness - Pacman.Height);
-
-        var finalX = Pacman.X;
-        var finalY = Pacman.Y;
-
-        if (IsSpaceFree(targetX, Pacman.Y, Pacman.Width, Pacman.Height))
+    private static Direction GetDirection(Key key)
+    {
+        return key switch
         {
-            finalX = targetX;
-        }
+            Key.Up or Key.W => Direction.Up,
+            Key.Down or Key.S => Direction.Down,
+            Key.Left or Key.A => Direction.Left,
+            Key.Right or Key.D => Direction.Right,
+            _ => Direction.None
+        };
+    }
 
-        if (IsSpaceFree(finalX, targetY, Pacman.Width, Pacman.Height))
-        {
-            finalY = targetY;
-        }
-
-        if (finalX == Pacman.X && finalY == Pacman.Y)
+    private void UpdatePacman()
+    {
+        if (_isGameFinished)
         {
             return;
         }
 
-        Pacman.Move(finalX, finalY);
+        TryTurnToDesiredDirection();
+
+        if (_currentDirection == Direction.None)
+        {
+            return;
+        }
+
+        var (dx, dy) = DirectionVector(_currentDirection, Pacman.MoveStep);
+        TryMovePacman(dx, dy);
         Dots.CheckDotCollision(_canvas, Pacman.GetBounds());
         CheckGhostCollision();
     }
 
-    private static (double Dx, double Dy, double Angle) GetMovement(Key key)
+    private void TryTurnToDesiredDirection()
     {
-        return key switch
+        if (_desiredDirection == Direction.None || _desiredDirection == _currentDirection)
         {
-            Key.Up or Key.W => (0, -CellSize, 270),
-            Key.Down or Key.S => (0, CellSize, 90),
-            Key.Left or Key.A => (-CellSize, 180),
-            Key.Right or Key.D => (CellSize, 0, 0),
-            _ => default
-        };
+            return;
+        }
+
+        if (IsPerpendicular(_currentDirection, _desiredDirection))
+        {
+            if (!TrySnapToLane(_currentDirection))
+            {
+                return;
+            }
+        }
+
+        var (dx, dy) = DirectionVector(_desiredDirection, Pacman.MoveStep);
+        if (!CanMoveInDirection(dx, dy))
+        {
+            return;
+        }
+
+        _currentDirection = _desiredDirection;
+        Pacman.Rotate(DirectionAngle(_currentDirection));
+    }
+
+    private bool CanMoveInDirection(double dx, double dy)
+    {
+        var nextX = Clamp(Pacman.X + dx, BorderThickness, BoardSize - BorderThickness - Pacman.Width);
+        var nextY = Clamp(Pacman.Y + dy, BorderThickness, BoardSize - BorderThickness - Pacman.Height);
+        return IsSpaceFree(nextX, nextY, Pacman.Width, Pacman.Height);
+    }
+
+    private void TryMovePacman(double dx, double dy)
+    {
+        var nextX = Clamp(Pacman.X + dx, BorderThickness, BoardSize - BorderThickness - Pacman.Width);
+        var nextY = Clamp(Pacman.Y + dy, BorderThickness, BoardSize - BorderThickness - Pacman.Height);
+
+        var finalX = Pacman.X;
+        var finalY = Pacman.Y;
+
+        if (IsSpaceFree(nextX, Pacman.Y, Pacman.Width, Pacman.Height))
+        {
+            finalX = nextX;
+        }
+
+        if (IsSpaceFree(finalX, nextY, Pacman.Width, Pacman.Height))
+        {
+            finalY = nextY;
+        }
+
+        if (finalX == Pacman.X && finalY == Pacman.Y)
+        {
+            _currentDirection = Direction.None;
+            return;
+        }
+
+        Pacman.Move(finalX, finalY);
+    }
+
+    private bool TrySnapToLane(Direction currentDirection)
+    {
+        if (currentDirection is Direction.Left or Direction.Right)
+        {
+            var snappedY = SnapToCell(Pacman.Y);
+            var deltaY = snappedY - Pacman.Y;
+            if (Math.Abs(deltaY) > LaneSnapTolerance)
+            {
+                return false;
+            }
+
+            if (Math.Abs(deltaY) < 0.01)
+            {
+                return true;
+            }
+
+            var nextY = Pacman.Y + Math.Sign(deltaY) * Math.Min(Pacman.MoveStep / 2, Math.Abs(deltaY));
+            if (!IsSpaceFree(Pacman.X, nextY, Pacman.Width, Pacman.Height))
+            {
+                return false;
+            }
+
+            Pacman.Move(Pacman.X, nextY);
+            return false;
+        }
+
+        var snappedX = SnapToCell(Pacman.X);
+        var deltaX = snappedX - Pacman.X;
+        if (Math.Abs(deltaX) > LaneSnapTolerance)
+        {
+            return false;
+        }
+
+        if (Math.Abs(deltaX) < 0.01)
+        {
+            return true;
+        }
+
+        var nextX = Pacman.X + Math.Sign(deltaX) * Math.Min(Pacman.MoveStep / 2, Math.Abs(deltaX));
+        if (!IsSpaceFree(nextX, Pacman.Y, Pacman.Width, Pacman.Height))
+        {
+            return false;
+        }
+
+        Pacman.Move(nextX, Pacman.Y);
+        return false;
     }
 
     private void LoadLevel(int level)
@@ -144,15 +261,21 @@ public class GameViewModel
 
         var config = _levels[level];
 
-        Pacman.Move(40, 140);
-        Pacman.Rotate(0);
-
+        ResetPacmanPosition();
         BuildMaze(config);
         BuildDots();
         BuildGhosts(config);
 
         _view.UpdateTheme(config.CanvasColor);
         _view.UpdateLevelDisplay(level, config.ThemeName);
+    }
+
+    private void ResetPacmanPosition()
+    {
+        Pacman.Move(40, 140);
+        _currentDirection = Direction.None;
+        _desiredDirection = Direction.None;
+        Pacman.Rotate(0);
     }
 
     private void BuildMaze(LevelConfig config)
@@ -171,9 +294,20 @@ public class GameViewModel
             {
                 Width = w,
                 Height = h,
-                Fill = new SolidColorBrush(config.WallColor),
-                RadiusX = 5,
-                RadiusY = 5
+                Fill = new LinearGradientBrush
+                {
+                    StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+                    EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
+                    GradientStops = new GradientStops
+                    {
+                        new GradientStop(config.WallColor, 0),
+                        new GradientStop(Color.FromArgb(255, 16, 48, 96), 1)
+                    }
+                },
+                RadiusX = 8,
+                RadiusY = 8,
+                Stroke = new SolidColorBrush(Color.FromArgb(180, 220, 235, 255)),
+                StrokeThickness = 1
             };
 
             Canvas.SetLeft(wall, x);
@@ -255,21 +389,7 @@ public class GameViewModel
 
         if (candidates.Count == 0)
         {
-            var recovered = RecoverGhostPosition(state);
-            if (!recovered)
-            {
-                return;
-            }
-
-            current = Quantize(state.Ghost.X, state.Ghost.Y);
-            candidates = NextCells(current, (int)state.Ghost.Speed)
-                .Where(next => IsSpaceFree(next.X, next.Y, state.Ghost.Width, state.Ghost.Height))
-                .ToList();
-
-            if (candidates.Count == 0)
-            {
-                return;
-            }
+            return;
         }
 
         var nextStep = _isPowerMode && !state.Ghost.IsBoss
@@ -277,32 +397,6 @@ public class GameViewModel
             : FindStepTowardTarget(current, target, candidates, state.Ghost.Width, state.Ghost.Height, (int)state.Ghost.Speed);
 
         state.Ghost.Move(nextStep.X, nextStep.Y);
-    }
-
-    private bool RecoverGhostPosition(GhostState state)
-    {
-        var origin = Quantize(state.Ghost.X, state.Ghost.Y);
-
-        for (var radius = 1; radius <= 3; radius++)
-        {
-            var range = radius * (int)CellSize;
-            var candidates = new (int X, int Y)[]
-            {
-                (origin.X + range, origin.Y),
-                (origin.X - range, origin.Y),
-                (origin.X, origin.Y + range),
-                (origin.X, origin.Y - range)
-            };
-
-            var candidate = candidates.FirstOrDefault(c => IsSpaceFree(c.X, c.Y, state.Ghost.Width, state.Ghost.Height));
-            if (candidate != default)
-            {
-                state.Ghost.Move(candidate.X, candidate.Y);
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private (int X, int Y) FindStepTowardTarget(
@@ -329,12 +423,7 @@ public class GameViewModel
 
             foreach (var next in NextCells(node, step))
             {
-                if (visited.Contains(next))
-                {
-                    continue;
-                }
-
-                if (!IsSpaceFree(next.X, next.Y, width, height))
+                if (visited.Contains(next) || !IsSpaceFree(next.X, next.Y, width, height))
                 {
                     continue;
                 }
@@ -343,21 +432,6 @@ public class GameViewModel
                 parent[next] = node;
                 queue.Enqueue(next);
             }
-
-            var spawn = config.SpawnPoints[i % config.SpawnPoints.Length];
-            var ghost = new Ghost(spawn.X, spawn.Y)
-            {
-                Speed = config.GhostSpeed
-            };
-
-            ghost.PositionChanged += (newX, newY) =>
-            {
-                Canvas.SetLeft(image, newX);
-                Canvas.SetTop(image, newY);
-            };
-            ghost.Move(spawn.X, spawn.Y);
-
-            _ghostStates.Add(new GhostState(ghost, image, spawn.X, spawn.Y));
         }
 
         if (!visited.Contains(target))
@@ -376,40 +450,7 @@ public class GameViewModel
             : candidates.OrderBy(c => ManhattanDistance(c, target)).First();
     }
 
-    private static IEnumerable<(int X, int Y)> NextCells((int X, int Y) node, int step)
-    {
-        yield return (node.X + step, node.Y);
-        yield return (node.X - step, node.Y);
-        yield return (node.X, node.Y + step);
-        yield return (node.X, node.Y - step);
-    }
-
-    private void ActivatePowerMode()
-    {
-        _isPowerMode = true;
-        _powerModeTimer.Stop();
-        _powerModeTimer.Start();
-
-        foreach (var state in _ghostStates.Where(s => s.Ghost.IsActive && !s.Ghost.IsBoss))
-        {
-            state.Ghost.IsVulnerable = true;
-            state.Image.Opacity = 0.45;
-        }
-    }
-
-    private void DisablePowerMode()
-    {
-        _isPowerMode = false;
-        _powerModeTimer.Stop();
-
-        foreach (var state in _ghostStates.Where(s => s.Ghost.IsActive))
-        {
-            state.Ghost.IsVulnerable = false;
-            state.Image.Opacity = 1;
-        }
-    }
-
-    private void MoveSingleGhost(GhostState state)
+    private void CheckGhostCollision()
     {
         var pacmanBounds = Pacman.GetBounds();
 
@@ -434,16 +475,23 @@ public class GameViewModel
                 continue;
             }
 
+            HandlePacmanHit();
+            return;
+        }
+    }
+
+    private void HandlePacmanHit()
+    {
+        _lives--;
+        _view.UpdateLivesDisplay(_lives);
+
+        if (_lives <= 0)
+        {
             EndGame();
             return;
         }
 
-        if (valid.Contains(walk))
-        {
-            return walk;
-        }
-
-        return valid.OrderBy(step => Distance(step, target)).First();
+        ResetPacmanPosition();
     }
 
     private void SpawnBoss()
@@ -471,6 +519,31 @@ public class GameViewModel
         _ghostStates.Add(new GhostState(ghost, bossImage));
     }
 
+    private void ActivatePowerMode()
+    {
+        _isPowerMode = true;
+        _powerModeTimer.Stop();
+        _powerModeTimer.Start();
+
+        foreach (var state in _ghostStates.Where(s => s.Ghost.IsActive && !s.Ghost.IsBoss))
+        {
+            state.Ghost.IsVulnerable = true;
+            state.Image.Opacity = 0.45;
+        }
+    }
+
+    private void DisablePowerMode()
+    {
+        _isPowerMode = false;
+        _powerModeTimer.Stop();
+
+        foreach (var state in _ghostStates.Where(s => s.Ghost.IsActive))
+        {
+            state.Ghost.IsVulnerable = false;
+            state.Image.Opacity = 1;
+        }
+    }
+
     private void AddScore(int points)
     {
         _score += points;
@@ -484,6 +557,7 @@ public class GameViewModel
         {
             _isGameFinished = true;
             _animationTimer.Stop();
+            _movementTimer.Stop();
             _ghostTimer.Stop();
             _powerModeTimer.Stop();
             _view.ShowWinMessage();
@@ -498,6 +572,7 @@ public class GameViewModel
     {
         _isGameFinished = true;
         _animationTimer.Stop();
+        _movementTimer.Stop();
         _ghostTimer.Stop();
         _powerModeTimer.Stop();
         _audio.Dead();
@@ -523,6 +598,48 @@ public class GameViewModel
             Math.Max(1, height - (CollisionInset * 2)));
 
         return !_walls.Any(w => w.Intersects(safeBounds));
+    }
+
+    private static bool IsPerpendicular(Direction a, Direction b)
+    {
+        return (a is Direction.Left or Direction.Right) && (b is Direction.Up or Direction.Down)
+            || (a is Direction.Up or Direction.Down) && (b is Direction.Left or Direction.Right);
+    }
+
+    private static (double Dx, double Dy) DirectionVector(Direction direction, double speed)
+    {
+        return direction switch
+        {
+            Direction.Up => (0, -speed),
+            Direction.Down => (0, speed),
+            Direction.Left => (-speed, 0),
+            Direction.Right => (speed, 0),
+            _ => (0, 0)
+        };
+    }
+
+    private static double DirectionAngle(Direction direction)
+    {
+        return direction switch
+        {
+            Direction.Up => 270,
+            Direction.Down => 90,
+            Direction.Left => 180,
+            _ => 0
+        };
+    }
+
+    private static double SnapToCell(double value)
+    {
+        return Math.Round(value / CellSize) * CellSize;
+    }
+
+    private static IEnumerable<(int X, int Y)> NextCells((int X, int Y) node, int step)
+    {
+        yield return (node.X + step, node.Y);
+        yield return (node.X - step, node.Y);
+        yield return (node.X, node.Y + step);
+        yield return (node.X, node.Y - step);
     }
 
     private static (int X, int Y) Quantize(double x, double y)
@@ -594,4 +711,13 @@ public class GameViewModel
         int GhostCount,
         (double X, double Y)[] Spawns,
         (double x, double y, double w, double h)[] Walls);
+
+    private enum Direction
+    {
+        None,
+        Up,
+        Down,
+        Left,
+        Right
+    }
 }

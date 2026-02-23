@@ -5,6 +5,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using PACMAN.Audio;
 using PACMAN.ViewModels;
+using System;
 
 namespace PACMAN.Views;
 
@@ -50,6 +51,13 @@ public partial class GameView : UserControl
     public void UpdateScoreDisplay(int score)
     {
         ScoreText.Text = $"Score: {score}";
+    }
+
+    public void UpdateLivesDisplay(int lives)
+    {
+        lives = Math.Max(0, lives);
+        var icons = new string('●', lives);
+        LivesText.Text = $"Vidas: {icons}";
     }
 
     public void UpdateLevelDisplay(int level, string theme)
