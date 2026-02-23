@@ -343,6 +343,21 @@ public class GameViewModel
                 parent[next] = node;
                 queue.Enqueue(next);
             }
+
+            var spawn = config.SpawnPoints[i % config.SpawnPoints.Length];
+            var ghost = new Ghost(spawn.X, spawn.Y)
+            {
+                Speed = config.GhostSpeed
+            };
+
+            ghost.PositionChanged += (newX, newY) =>
+            {
+                Canvas.SetLeft(image, newX);
+                Canvas.SetTop(image, newY);
+            };
+            ghost.Move(spawn.X, spawn.Y);
+
+            _ghostStates.Add(new GhostState(ghost, image, spawn.X, spawn.Y));
         }
 
         if (!visited.Contains(target))
@@ -394,7 +409,7 @@ public class GameViewModel
         }
     }
 
-    private void CheckGhostCollision()
+    private void MoveSingleGhost(GhostState state)
     {
         var pacmanBounds = Pacman.GetBounds();
 
@@ -422,6 +437,13 @@ public class GameViewModel
             EndGame();
             return;
         }
+
+        if (valid.Contains(walk))
+        {
+            return walk;
+        }
+
+        return valid.OrderBy(step => Distance(step, target)).First();
     }
 
     private void SpawnBoss()
