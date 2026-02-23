@@ -1,12 +1,12 @@
-using Avalonia.Controls;
-using System;
-using System.Collections.Generic;
-using Avalonia.Interactivity;
-using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Rendering;
 using PACMAN.Services;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace PACMAN.Views;
 
@@ -16,7 +16,7 @@ namespace PACMAN.Views;
 public partial class MainMenuView : UserControl
 {
     /// <summary>
-    /// Inicializa una nueva instancia de la clase <see cref="MainMenuView"/>
+    /// Inicializa una nueva instancia de la clase <see cref="MainMenuView"/>.
     /// Tambien inicializa el servicio de puntajes.
     /// </summary>
     public MainMenuView()
@@ -25,10 +25,10 @@ public partial class MainMenuView : UserControl
         ScoreService.Initialize();
     }
 
-    private void StartGameClick(object sender, RoutedEventArgs e)
+    private void StartGameClick(object? sender, RoutedEventArgs e)
     {
         ScoreService.ResetPlayerScore("Jugador");
-        if (this.VisualRoot is MainWindow mainWindow)
+        if (VisualRoot is MainWindow mainWindow)
         {
             mainWindow.LoadGameView();
         }
@@ -38,31 +38,31 @@ public partial class MainMenuView : UserControl
     {
         try
         {
-            var scores = ScoreService.LoadScores();
+            var scores = ScoreService
+                .LoadScores()
+                .OrderByDescending(score => score.HighScore)
+                .Take(10)
+                .ToList();
 
-            if (scores != null && scores.Count > 0)
+            if (scores.Count == 0)
             {
-                var formattedScores = new List<string>();
+                await MessageBox("No se encontraron puntajes.");
+                return;
+            }
 
-                foreach (var score in scores)
-                {
-                    formattedScores.Add($"{score.PlayerName}: {score.HighScore}");
-                }
+            var formattedScores = scores
+                .Select((score, index) => $"#{index + 1}  {score.PlayerName}: {score.HighScore}")
+                .ToList();
 
-                var scoreWindow = new ScoreBoardWindow(formattedScores);
-                var owner = TryGetOwnerWindow(VisualRoot);
-                if (owner is not null)
-                {
-                    await scoreWindow.ShowDialog(owner);
-                }
-                else
-                {
-                    scoreWindow.Show();
-                }
+            var scoreWindow = new ScoreBoardWindow(formattedScores);
+            var owner = TryGetOwnerWindow(VisualRoot);
+            if (owner is not null)
+            {
+                await scoreWindow.ShowDialog(owner);
             }
             else
             {
-                await MessageBox("No se encontraron puntajes.");
+                scoreWindow.Show();
             }
         }
         catch (Exception ex)
@@ -73,7 +73,7 @@ public partial class MainMenuView : UserControl
 
     private void ExitClick(object? sender, RoutedEventArgs e)
     {
-        (this.VisualRoot as MainWindow)?.Close();
+        (VisualRoot as MainWindow)?.Close();
     }
 
     private static Window? TryGetOwnerWindow(IRenderRoot? root)
@@ -85,30 +85,40 @@ public partial class MainMenuView : UserControl
     {
         var dialog = new Window
         {
-            Width = 300,
-            Height = 150,
-            Title = "Mensaje"
+            Width = 340,
+            Height = 180,
+            Title = "Mensaje",
+            CanResize = false,
+            Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#0F172A"))
         };
 
         var okButton = new Button
         {
-            Content = "Ok",
+            Content = "Aceptar",
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(10),
-            Width = 80,
+            Width = 100,
         };
-        
+
         okButton.Click += (_, _) => dialog.Close();
 
         dialog.Content = new StackPanel
         {
+            Spacing = 8,
+            Margin = new Thickness(10),
             Children =
             {
-                new TextBlock { Text = message, Margin = new Thickness(10) },
+                new TextBlock
+                {
+                    Text = message,
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                    Margin = new Thickness(10),
+                    HorizontalAlignment = HorizontalAlignment.Stretch
+                },
                 okButton
             }
         };
-        
+
         var owner = TryGetOwnerWindow(VisualRoot);
         if (owner is not null)
         {
