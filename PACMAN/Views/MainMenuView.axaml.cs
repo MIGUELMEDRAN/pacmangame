@@ -5,6 +5,7 @@ using Avalonia.Interactivity;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Layout;
+using Avalonia.Rendering;
 using PACMAN.Services;
 
 namespace PACMAN.Views;
@@ -49,7 +50,15 @@ public partial class MainMenuView : UserControl
                 }
 
                 var scoreWindow = new ScoreBoardWindow(formattedScores);
-                await scoreWindow.ShowDialog((Window)this.VisualRoot);
+                var owner = TryGetOwnerWindow(VisualRoot);
+                if (owner is not null)
+                {
+                    await scoreWindow.ShowDialog(owner);
+                }
+                else
+                {
+                    scoreWindow.Show();
+                }
             }
             else
             {
@@ -65,6 +74,11 @@ public partial class MainMenuView : UserControl
     private void ExitClick(object? sender, RoutedEventArgs e)
     {
         (this.VisualRoot as MainWindow)?.Close();
+    }
+
+    private static Window? TryGetOwnerWindow(IRenderRoot? root)
+    {
+        return root as Window;
     }
 
     private async Task MessageBox(string message)
@@ -95,6 +109,13 @@ public partial class MainMenuView : UserControl
             }
         };
         
-        await dialog.ShowDialog((Window)this.VisualRoot);
+        var owner = TryGetOwnerWindow(VisualRoot);
+        if (owner is not null)
+        {
+            await dialog.ShowDialog(owner);
+            return;
+        }
+
+        dialog.Show();
     }
 }
