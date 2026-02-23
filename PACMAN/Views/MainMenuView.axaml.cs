@@ -49,7 +49,14 @@ public partial class MainMenuView : UserControl
                 }
 
                 var scoreWindow = new ScoreBoardWindow(formattedScores);
-                await scoreWindow.ShowDialog((Window)this.VisualRoot);
+                if (VisualRoot is Window owner)
+                {
+                    await scoreWindow.ShowDialog(owner);
+                }
+                else
+                {
+                    scoreWindow.Show();
+                }
             }
             else
             {
@@ -95,6 +102,12 @@ public partial class MainMenuView : UserControl
             }
         };
         
-        await dialog.ShowDialog((Window)this.VisualRoot);
+        if (VisualRoot is Window owner)
+        {
+            await dialog.ShowDialog(owner);
+            return;
+        }
+
+        dialog.Show();
     }
 }
