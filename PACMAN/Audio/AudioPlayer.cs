@@ -5,62 +5,71 @@ using System.Threading.Tasks;
 
 namespace PACMAN.Audio;
 
-/// <summary>
-/// Reproduce efectos de sonido para el juego PACMAN utilizando LibCLV.
-/// </summary>
 public class AudioPlayer : IDisposable
 {
-    private readonly LibVLC libVLC;
-    private readonly MediaPlayer mediaPlayer;
-    private readonly string chompPath;
-    private readonly string deadPath;
-    
-    private volatile bool IsGameOver = false;
+    private readonly LibVLC _libVlc;
+    private readonly MediaPlayer _mediaPlayer;
+    private readonly string _chompPath;
+    private readonly string _deadPath;
 
-    /// <summary>
-    /// Inicializa una nueva instancia de la clase <see cref="AudioPlayer"/>
-    /// Carga los archivos de audio y configura LibVLC.
-    /// </summary>
+    private volatile bool _isGameOver;
+
     public AudioPlayer()
     {
         Core.Initialize();
-        libVLC = new LibVLC("--quiet", "--no-xlib");
-        mediaPlayer = new MediaPlayer(libVLC);
-        
-        chompPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Sound", "chomp.mp3");
-        deadPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Sound", "dead.wav");
+        _libVlc = new LibVLC("--quiet", "--no-xlib");
+        _mediaPlayer = new MediaPlayer(_libVlc);
+
+        _chompPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Sound", "chomp.mp3");
+        _deadPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Sound", "dead.wav");
     }
 
-    /// <summary>
-    /// Reproduce el sonido "chomp" (comer punto).
-    /// </summary>
     public void Chomp()
     {
-        if (!IsGameOver)
+        if (_isGameOver)
         {
-            Play(chompPath);
+            return;
         }
+
+        Play(_chompPath);
     }
 
-    /// <summary>
-    /// Reproduce el sonido "dead" (muerte del pacman) y bloquear otros sonidos.
-    /// </summary>
+    public void PowerUp()
+    {
+        if (_isGameOver)
+        {
+            return;
+        }
+
+        Play(_chompPath);
+    }
+
+    public void LevelUp()
+    {
+        if (_isGameOver)
+        {
+            return;
+        }
+
+        Play(_chompPath);
+    }
+
     public void Dead()
     {
-        IsGameOver = true;
+        _isGameOver = true;
 
         Task.Run(() =>
         {
-            lock (mediaPlayer)
+            lock (_mediaPlayer)
             {
-                if (mediaPlayer.IsPlaying)
+                if (_mediaPlayer.IsPlaying)
                 {
-                    mediaPlayer.Stop();
+                    _mediaPlayer.Stop();
                 }
 
-                using var media = new Media(libVLC, deadPath, FromType.FromPath);
-                mediaPlayer.Media = media;
-                mediaPlayer.Play();
+                using var media = new Media(_libVlc, _deadPath, FromType.FromPath);
+                _mediaPlayer.Media = media;
+                _mediaPlayer.Play();
             }
         });
     }
@@ -69,23 +78,23 @@ public class AudioPlayer : IDisposable
     {
         Task.Run(() =>
         {
-            if (mediaPlayer.IsPlaying)
+            lock (_mediaPlayer)
             {
-                mediaPlayer.Stop();
+                if (_mediaPlayer.IsPlaying)
+                {
+                    _mediaPlayer.Stop();
+                }
+
+                using var media = new Media(_libVlc, path, FromType.FromPath);
+                _mediaPlayer.Media = media;
+                _mediaPlayer.Play();
             }
-            
-            using var media = new  Media(libVLC, path, FromType.FromPath);
-            mediaPlayer.Media = media;
-            mediaPlayer.Play();
         });
     }
 
-    /// <summary>
-    /// Libera los recursos utilizados por la instancia de <see cref="AudioPlayer"/>
-    /// </summary>
     public void Dispose()
     {
-        mediaPlayer.Dispose();
-        libVLC.Dispose();
+        _mediaPlayer.Dispose();
+        _libVlc.Dispose();
     }
 }
