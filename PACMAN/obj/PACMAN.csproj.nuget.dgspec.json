@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\papie\\Downloads\\pacmangame\\pacmangame\\PACMAN\\PACMAN.csproj": {}
+    "C:\\Users\\papie\\Downloads\\pacmangame\\pacmangame\\PACMAN\\PACMAN.csproj": {}
   },
   "projects": {
-    "c:\\Users\\papie\\Downloads\\pacmangame\\pacmangame\\PACMAN\\PACMAN.csproj": {
+    "C:\\Users\\papie\\Downloads\\pacmangame\\pacmangame\\PACMAN\\PACMAN.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\papie\\Downloads\\pacmangame\\pacmangame\\PACMAN\\PACMAN.csproj",
+        "projectUniqueName": "C:\\Users\\papie\\Downloads\\pacmangame\\pacmangame\\PACMAN\\PACMAN.csproj",
         "projectName": "PACMAN",
-        "projectPath": "c:\\Users\\papie\\Downloads\\pacmangame\\pacmangame\\PACMAN\\PACMAN.csproj",
+        "projectPath": "C:\\Users\\papie\\Downloads\\pacmangame\\pacmangame\\PACMAN\\PACMAN.csproj",
         "packagesPath": "C:\\Users\\papie\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\papie\\Downloads\\pacmangame\\pacmangame\\PACMAN\\obj\\",
+        "outputPath": "C:\\Users\\papie\\Downloads\\pacmangame\\pacmangame\\PACMAN\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
