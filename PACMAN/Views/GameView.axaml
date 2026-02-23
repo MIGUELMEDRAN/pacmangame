@@ -10,19 +10,18 @@
                 BorderBrush="#334155"
                 BorderThickness="0,0,0,1"
                 CornerRadius="10,10,0,0">
-            <DockPanel LastChildFill="False">
-                <StackPanel Orientation="Horizontal" Spacing="20" DockPanel.Dock="Left">
-                    <TextBlock x:Name="LivesText" Text="Vidas: ●●●" Foreground="#FDE68A" FontSize="18" FontWeight="SemiBold"/>
-                    <TextBlock x:Name="ScoreText" Text="Score: 0" Foreground="#FDE68A" FontSize="18" FontWeight="SemiBold"/>
-                    <TextBlock x:Name="LevelText" Text="Nivel: 1" Foreground="#93C5FD" FontSize="18" FontWeight="SemiBold"/>
-                    <TextBlock x:Name="ThemeText" Text="Tema: Aurora" Foreground="#A7F3D0" FontSize="18" FontWeight="SemiBold"/>
+            <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                <Button Grid.Column="0" x:Name="BackToMenuButton" Content="Menú" Width="118" Height="34" Click="OnBackToMenuClick"/>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="20" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock x:Name="LivesText" Text="Vidas: ●●●" Foreground="#FDE68A" FontSize="18" FontWeight="SemiBold" TextAlignment="Center"/>
+                    <TextBlock x:Name="ScoreText" Text="Score: 0" Foreground="#FDE68A" FontSize="18" FontWeight="SemiBold" TextAlignment="Center"/>
+                    <TextBlock x:Name="LevelText" Text="Nivel: 1" Foreground="#93C5FD" FontSize="18" FontWeight="SemiBold" TextAlignment="Center"/>
+                    <TextBlock x:Name="ThemeText" Text="Tema: Aurora" Foreground="#A7F3D0" FontSize="18" FontWeight="SemiBold" TextAlignment="Center"/>
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" Spacing="8" DockPanel.Dock="Right">
-                    <Button x:Name="RetryButton" Content="Reintentar" Width="118" Height="34" Click="OnRetryClick"/>
-                    <Button x:Name="BackToMenuButton" Content="Menú" Width="118" Height="34" Click="OnBackToMenuClick"/>
-                </StackPanel>
-            </DockPanel>
+                <Button Grid.Column="2" x:Name="RetryButton" Content="Reintentar" Width="118" Height="34" Click="OnRetryClick"/>
+            </Grid>
         </Border>
 
         <Grid Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,14,0,6">
@@ -51,8 +50,8 @@
                     BorderThickness="2"
                     ZIndex="20">
                 <StackPanel Spacing="14" HorizontalAlignment="Center">
-                    <TextBlock x:Name="StatusTitle" Text="Game Over" FontSize="34" FontWeight="Bold" Foreground="#F9FAFB" HorizontalAlignment="Center"/>
-                    <TextBlock x:Name="StatusMessage" Text="Intenta nuevamente" FontSize="18" Foreground="#E5E7EB" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="StatusTitle" Text="Game Over" FontSize="34" FontWeight="Bold" Foreground="#F9FAFB" HorizontalAlignment="Center" TextAlignment="Center"/>
+                    <TextBlock x:Name="StatusMessage" Text="Intenta nuevamente" FontSize="18" Foreground="#E5E7EB" HorizontalAlignment="Center" TextAlignment="Center"/>
                     <Button Content="Reintentar" Width="150" Height="34" HorizontalAlignment="Center" Click="OnRetryClick"/>
                 </StackPanel>
             </Border>

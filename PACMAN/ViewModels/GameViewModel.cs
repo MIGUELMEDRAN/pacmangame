@@ -19,8 +19,10 @@ public class GameViewModel : IDisposable
     private const double BoardSize = 600;
     private const double BorderThickness = 20;
     private const double CellSize = 10;
-    private const double CollisionInset = 2;
-    private const double LaneSnapTolerance = 4;
+    private const double CollisionInset = 0.25;
+    private const double LaneSnapTolerance = 6;
+    private const double PacmanStep = 8;
+    private const double GhostStep = 8;
 
     private readonly GameView _view;
     private readonly Canvas _canvas;
@@ -66,7 +68,7 @@ public class GameViewModel : IDisposable
         _animationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
         _animationTimer.Tick += (_, _) => Pacman.ToggleMouth();
 
-        _movementTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+        _movementTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(40) };
         _movementTimer.Tick += (_, _) => UpdatePacman();
 
         _ghostTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
@@ -278,6 +280,7 @@ public class GameViewModel : IDisposable
 
     private void ResetPacmanPosition()
     {
+        Pacman.MoveStep = PacmanStep;
         Pacman.Move(40, 140);
         _currentDirection = Direction.None;
         _desiredDirection = Direction.None;
@@ -328,7 +331,7 @@ public class GameViewModel : IDisposable
     private void BuildDots()
     {
         Dots.Reset(_canvas);
-        Dots.CreateDots(_canvas, _walls);
+        Dots.CreateDots(_canvas, _walls, 40, 140);
         Dots.CreatePowerUps(_canvas, _level);
     }
 
@@ -352,7 +355,7 @@ public class GameViewModel : IDisposable
             {
                 Width = image.Width,
                 Height = image.Height,
-                Speed = CellSize
+                Speed = GhostStep
             };
 
             ghost.PositionChanged += (x, y) =>
@@ -511,7 +514,7 @@ public class GameViewModel : IDisposable
         {
             Width = bossImage.Width,
             Height = bossImage.Height,
-            Speed = CellSize,
+            Speed = GhostStep,
             IsBoss = true
         };
 
