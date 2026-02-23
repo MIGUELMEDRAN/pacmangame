@@ -12,6 +12,7 @@
         <Border Grid.Row="0" Background="#111827" Padding="10" BorderBrush="#374151" BorderThickness="0,0,0,1">
             <DockPanel>
                 <StackPanel Orientation="Horizontal" Spacing="20" DockPanel.Dock="Left">
+                    <TextBlock x:Name="LivesText" Text="Vidas: ●●●" Foreground="#FDE68A" FontSize="18" FontWeight="SemiBold"/>
                     <TextBlock x:Name="ScoreText" Text="Score: 0" Foreground="#FDE68A" FontSize="18" FontWeight="SemiBold"/>
                     <TextBlock x:Name="LevelText" Text="Nivel: 1" Foreground="#93C5FD" FontSize="18" FontWeight="SemiBold"/>
                     <TextBlock x:Name="ThemeText" Text="Tema: Aurora" Foreground="#A7F3D0" FontSize="18" FontWeight="SemiBold"/>
