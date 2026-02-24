@@ -338,25 +338,3 @@ Comportamiento:
 
 ---
 
-## 13) Posibles mejoras futuras
-
-- Sistema multi-jugador real en ranking (captura de nombre).
-- Más tipos de fantasmas con IA diferenciada.
-- Sonidos y música por estado de juego.
-- Ajuste de dificultad progresiva (velocidades/tiempos).
-- Tests automatizados para servicios y lógica pura.
-- Localización i18n para UI.
-
----
-
-## 14) Solución de problemas
-
-- **No hay audio:** verificar instalación/compatibilidad de runtime VLC y rutas de salida de assets.
-- **No aparecen imágenes:** confirmar que los `AvaloniaResource` están incluidos y build limpio.
-- **No persiste score:** revisar permisos de escritura en carpeta de salida (`Assets/Data/score.json`).
-
----
-
-## 15) Licencia
-
-Sin licencia explícita en este repositorio. Si se publicará de forma abierta, se recomienda añadir un archivo `LICENSE`.
